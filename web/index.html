@@ -1,0 +1,244 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>dreamTunnel — мгновенные публичные туннели</title>
+<meta name="description" content="Одна команда — и ваш локальный сервер доступен из интернета по HTTPS с собственным поддоменом. Без предупреждений, без падений, с автовосстановлением.">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Manrope:wght@400&display=swap">
+<style>
+:root{
+  --ink:#000000;
+  --paper:#ffffff;
+  --graphite:#999999;
+  --soft:#777777;
+  --line:1px solid #000;
+  --font:'Manrope',system-ui,sans-serif;
+}
+*{border-radius:0;margin:0;padding:0;box-sizing:border-box;font-synthesis:none;}
+::selection{color:#fff;background:#000;}
+html{scroll-behavior:smooth;}
+body{font-family:var(--font);font-weight:400;background:var(--paper);color:var(--ink);font-size:16px;line-height:1.15;}
+a{color:inherit;text-decoration:none;}
+:focus-visible{outline:2px solid #000;outline-offset:3px;}
+
+/* registration bar */
+.regbar{position:fixed;top:0;left:0;right:0;height:52px;border-bottom:var(--line);background:var(--paper);z-index:50;display:grid;grid-template-columns:1fr auto 1fr;align-items:center;padding:0 24px;}
+.regbar .logo{font-size:16px;letter-spacing:-.01em;}
+.regbar .tag{color:var(--graphite);font-size:13px;}
+.regbar .links{text-align:right;font-size:14px;}
+.regbar .links a{margin-left:18px;}
+.regbar .links a:hover{background:#000;color:#fff;}
+
+/* hero */
+.hero{max-width:1440px;margin:0 auto;padding:150px 55px 75px;}
+.hero h1{font-size:clamp(64px,10vw,150px);line-height:.82;letter-spacing:-.065em;max-width:12ch;}
+.hero-copy{margin-top:40px;font-size:20px;line-height:1.5;max-width:56ch;}
+.hero-copy .dim{color:var(--graphite);}
+
+/* quickstart */
+.quickstart{max-width:1440px;margin:0 auto;padding:75px 55px 150px;}
+.quickstart h2{font-size:clamp(40px,5vw,70px);line-height:.87;letter-spacing:-.045em;margin-bottom:60px;}
+.qs-grid{display:grid;grid-template-columns:1fr 1.3fr;gap:20px;}
+.qs-label{color:var(--graphite);font-size:14px;margin-bottom:10px;}
+pre{background:#000;color:#fff;padding:22px;font-size:clamp(14px,1.6vw,18px);line-height:1.5;overflow-x:auto;white-space:pre-wrap;word-break:break-all;}
+pre .c{color:#999;}
+pre .g{color:#fff;font-weight:400;}
+.qs-note{margin-top:14px;font-size:14px;color:var(--graphite);max-width:48ch;line-height:1.45;}
+
+/* features */
+.features{max-width:1440px;margin:0 auto;padding:0 55px 150px;}
+.features h2{font-size:clamp(40px,5vw,70px);line-height:.87;letter-spacing:-.045em;margin-bottom:60px;}
+.f-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:20px;}
+.f-cell{border-top:var(--line);padding:28px 0 55px;}
+.f-cell .num{color:var(--graphite);font-size:14px;margin-bottom:16px;}
+.f-cell h3{font-size:clamp(22px,2.4vw,32px);line-height:.95;letter-spacing:-.03em;margin-bottom:16px;}
+.f-cell p{font-size:15px;line-height:1.5;color:#444;max-width:38ch;}
+.f-cell a{display:inline-block;margin-top:16px;font-size:14px;border-bottom:1px solid #000;}
+.f-cell a:hover{background:#000;color:#fff;}
+
+/* docs */
+.docs{max-width:1440px;margin:0 auto;padding:0 55px 150px;}
+.docs h2{font-size:clamp(40px,5vw,70px);line-height:.87;letter-spacing:-.045em;margin-bottom:60px;}
+.doc-sec{border-top:var(--line);padding:35px 0 55px;display:grid;grid-template-columns:1fr 2fr;gap:40px;}
+.doc-sec h3{font-size:clamp(20px,2.2vw,28px);line-height:.95;letter-spacing:-.02em;}
+.doc-sec .body{font-size:15px;line-height:1.6;}
+.doc-sec .body p{margin-bottom:14px;max-width:68ch;}
+.doc-sec .body p.dim{color:var(--graphite);}
+.doc-sec table{width:100%;border-collapse:collapse;text-align:left;margin-top:20px;}
+.doc-sec th{color:#999;font-weight:400;padding:10px 12px 10px 0;border-bottom:var(--line);}
+.doc-sec td{padding:14px 12px 14px 0;border-bottom:var(--line);vertical-align:top;font-size:15px;}
+.doc-sec code{background:#000;color:#fff;padding:2px 6px;font-size:14px;font-family:inherit;}
+
+/* how it works */
+.how{max-width:1440px;margin:0 auto;padding:0 55px 150px;}
+.how h2{font-size:clamp(40px,5vw,70px);line-height:.87;letter-spacing:-.045em;margin-bottom:60px;}
+.how pre{margin-bottom:40px;}
+
+/* footer */
+footer{border-top:var(--line);}
+.foot-in{max-width:1440px;margin:0 auto;padding:45px 55px;display:grid;grid-template-columns:1fr 1fr;gap:20px;font-size:14px;}
+.foot-in .r{text-align:right;color:var(--graphite);}
+
+/* arrow glyph */
+.arr{display:inline-block;transform:translateY(-2px);}
+
+@media (max-width:800px){
+  .hero{padding:110px 16px 60px;}
+  .quickstart,.features,.docs,.how{padding-left:16px;padding-right:16px;padding-bottom:90px;}
+  .qs-grid,.f-grid{grid-template-columns:1fr;}
+  .doc-sec{grid-template-columns:1fr;gap:20px;}
+  .foot-in{padding:35px 16px;grid-template-columns:1fr;}
+  .foot-in .r{text-align:left;}
+  .regbar .tag{display:none;}
+}
+@media (prefers-reduced-motion:reduce){*{animation-duration:.01ms!important;transition-duration:.01ms!important;}}
+</style>
+</head>
+<body>
+
+<div class="regbar">
+  <div class="logo">dreamTunnel</div>
+  <div class="tag">мгновенные публичные туннели · maiuni.online</div>
+  <div class="links">
+    <a href="#quickstart">Установка <span class="arr">↗</span></a>
+    <a href="#docs">Документация <span class="arr">↗</span></a>
+  </div>
+</div>
+
+<section class="hero">
+  <h1>Ваш локальный сервер — в интернете за одну команду</h1>
+  <p class="hero-copy">
+    dreamTunnel пробрасывает порт вашего компьютера в публичный интернет через исходящее соединение.
+    <span class="dim">NAT, файрвол и CG-NAT не помеха. Каждому туннелю — свой HTTPS-поддомен, сертификат включён, переподключение при обрыве интернета — автоматическое.</span>
+  </p>
+</section>
+
+<section class="quickstart" id="quickstart">
+  <h2>Установка</h2>
+  <div class="qs-grid">
+    <div>
+      <div class="qs-label">Windows — PowerShell</div>
+      <pre>iwr -useb https://tunnel.swag.best/install.ps1 | iex</pre>
+      <div class="qs-label" style="margin-top:28px;">Linux / macOS</div>
+      <pre>curl -fsSL https://tunnel.swag.best/install.sh | bash</pre>
+    </div>
+    <div>
+      <div class="qs-label">Запуск туннеля</div>
+      <pre>dt http 8080
+
+  <span class="c">dreamTunnel — tunnel online</span>
+  local port 8080 -&gt; https://my-site.maiuni.online
+  press Ctrl+C to stop</pre>
+      <p class="qs-note">Одна команда — и любой HTTP-сервер на порту 8080 доступен по адресу <strong>https://my-site.maiuni.online</strong>. Валидный сертификат уже включён: никаких предупреждений браузера.</p>
+    </div>
+  </div>
+</section>
+
+<section class="features">
+  <h2>Возможности</h2>
+  <div class="f-grid">
+    <div class="f-cell">
+      <div class="num">01</div>
+      <h3>Одна команда</h3>
+      <p>Без регистрации, конфигов и ключей. Установили — запустили — работает. Установщик сам кладёт бинарник в PATH.</p>
+    </div>
+    <div class="f-cell">
+      <div class="num">02</div>
+      <h3>HTTPS без предупреждений</h3>
+      <p>Wildcard-сертификат на весь пул поддоменов *.maiuni.online. Браузер открывает туннель как обычный сайт — замок, зелёный, честный.</p>
+    </div>
+    <div class="f-cell">
+      <div class="num">03</div>
+      <h3>Не падает</h3>
+      <p>Обрыв интернета? Клиент переподключается сам: экспоненциальный бэкофф с джиттером, heartbeat каждые 10 секунд, сессия восстанавливается на тот же поддомен.</p>
+    </div>
+    <div class="f-cell">
+      <div class="num">04</div>
+      <h3>Своё имя поддомена</h3>
+      <p>dt http 3000 my-api — получите https://my-api.maiuni.online. Без имени — случайный короткий поддомен из пула.</p>
+    </div>
+    <div class="f-cell">
+      <div class="num">05</div>
+      <h3>Кроссплатформенно</h3>
+      <p>Один бинарник на Go: Windows, Linux, macOS — amd64 и arm64. Ставится скриптом, ничего не требует.</p>
+    </div>
+    <div class="f-cell">
+      <div class="num">06</div>
+      <h3>Self-hosted</h3>
+      <p>Весь трафик идёт через ваш сервер. Никаких чужих облаков, логов и лимитов. Исходный код открыт.</p>
+    </div>
+  </div>
+</section>
+
+<section class="how">
+  <h2>Как это работает</h2>
+  <pre>  ваш компьютер                          сервер dreamTunnel                 браузер
+  ┌─────────────┐   исходящее TLS    ┌──────────────────────┐    HTTPS    ┌─────────┐
+  │ dt http 8080├───────────────────&gt;│ :444 control-канал   │&lt;────────────┤ визитёр  │
+  │ локальный   │&lt;───────────────────┤ :8453 edge + wildcard├────────────&gt;│ на сайт  │
+  │ web-сервер  │   стримы данных    │ сертификат *.maiuni  │             └─────────┘
+  └─────────────┘                    └──────────────────────┘
+       NAT / CG-NAT / файрвол — не проблема: всё соединение инициирует клиент</pre>
+</section>
+
+<section class="docs" id="docs">
+  <h2>Документация</h2>
+
+  <div class="doc-sec">
+    <h3>Команды</h3>
+    <div class="body">
+      <table>
+        <tr><th>Команда</th><th>Что делает</th></tr>
+        <tr><td><code>dt http 8080</code></td><td>Туннель к локальному HTTP-серверу на порту 8080. Поддомен — случайный.</td></tr>
+        <tr><td><code>dt http 8080 my-api</code></td><td>То же, но с постоянным именем: <code>https://my-api.maiuni.online</code></td></tr>
+        <tr><td><code>dt http 8080 --server host:port</code></td><td>Указать другой сервер dreamTunnel.</td></tr>
+        <tr><td><code>dt tcp 25565</code></td><td>Сырой TCP-туннель (например, игровой сервер).</td></tr>
+        <tr><td><code>dt login</code></td><td>Сохранить сервер и токен в <code>~/.dreamtunnel/config.env</code>.</td></tr>
+        <tr><td><code>dt config</code></td><td>Показать текущую конфигурацию.</td></tr>
+      </table>
+    </div>
+  </div>
+
+  <div class="doc-sec">
+    <h3>Переподключение</h3>
+    <div class="body">
+      <p>Клиент держит контрольный канал с сервером и обменивается heartbeat-сообщениями. Если связь пропала — Wi-Fi мигнул, ноутбук уснул, провайдер перебрал кабель — клиент сам начинает переподключение: 1с, 2с, 4с… до 60с максимум, со случайным джиттером, чтобы толпа клиентов не валилась на сервер одновременно.</p>
+      <p class="dim">Сессия хранится локально. После восстановления клиент получает тот же поддомен — ссылки не ломаются. Активные TCP-соединения внутри туннеля при обрыве пересоздаются (это свойство TCP), но сам туннель и URL остаются прежними.</p>
+    </div>
+  </div>
+
+  <div class="doc-sec">
+    <h3>Токен доступа</h3>
+    <div class="body">
+      <p>Для доступа к серверу нужен токен. Он задаётся переменной окружения <code>DT_TOKEN</code>, файлом <code>~/.dreamtunnel/config.env</code> или командой <code>dt login</code>. В разделяемых конфигурациях токен хранится в обфусцированном виде — мастер-ключ сервера остаётся только на сервере.</p>
+      <p class="dim">Владелец сервера: сгенерировать клиентский токен — <code>dt token &lt;секрет&gt;</code> на сервере (выведет обфусцированную форму для раздачи).</p>
+    </div>
+  </div>
+
+  <div class="doc-sec">
+    <h3>Свой сервер</h3>
+    <div class="body">
+      <p>Релей — это тот же бинарник: <code>dt server</code>. Конфиг в <code>/etc/dreamtunnel/server.conf</code> (секрет, домен, порты, фильтр). systemd-юнит и wildcard-сертификат через acme.sh DNS-01 — всё как в описании проекта на GitHub.</p>
+      <p class="dim">Пул поддоменов реализован wildcard-записью DNS: *.maiuni.online → IP сервера. Никаких отдельных записей создавать не нужно — поддомены виртуальные, сервер их раздаёт динамически.</p>
+    </div>
+  </div>
+
+  <div class="doc-sec">
+    <h3>Безопасность</h3>
+    <div class="body">
+      <p>Канал клиент-сервер зашифрован TLS. Edge терминирует TLS wildcard-сертификатом и проксирует расшифрованный HTTP к вашему локальному сервису. Доступ к серверу только по токену.</p>
+      <p class="dim">На сервере есть переключаемый фильтр, который блокирует выдачу туннелей для очевидно нелегального контента (защита детей). Включается флагом DT_FILTER_ENABLED=1 в конфиге сервера.</p>
+    </div>
+  </div>
+</section>
+
+<footer>
+  <div class="foot-in">
+    <div>dreamTunnel · self-hosted туннели · экосистема swag.best</div>
+    <div class="r">сервер: tunnel.swag.best · поддомены: *.maiuni.online <span class="arr">↗</span></div>
+  </div>
+</footer>
+
+</body>
+</html>

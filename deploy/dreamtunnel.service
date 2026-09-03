@@ -1,0 +1,15 @@
+[Unit]
+Description=dreamTunnel relay server
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+ExecStart=/usr/local/bin/dt server --config /etc/dreamtunnel/server.conf
+Restart=always
+RestartSec=3
+LimitNOFILE=65536
+NoNewPrivileges=yes
+ProtectSystem=full
+
+[Install]
+WantedBy=multi-user.target

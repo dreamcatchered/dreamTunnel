@@ -42,7 +42,51 @@ type TunnelServer struct {
 	Secret      string
 	Filter      *ContentFilter
 	IdleTimeout time.Duration
+
+	// admin state
+	adminMu   sync.Mutex
+	history   []HistoryEntry // ring of past sessions
+	bannedIP  map[string]time.Time
+	rateAuth  map[string]*rateBucket // failed auth attempts per IP
+	stats     ServerStats
 }
+
+// HistoryEntry is a completed or active client session record.
+type HistoryEntry struct {
+	Sess    string    `json:"sess"`
+	Host    string    `json:"host"`
+	Mode    string    `json:"mode"`
+	Port    int       `json:"port"`
+	IP      string    `json:"ip"`
+	Start   time.Time `json:"start"`
+	End     time.Time `json:"end"`
+	Streams int64     `json:"streams"`
+	BytesIn int64     `json:"bytesIn"`  // public -> client
+	BytesOut int64    `json:"bytesOut"` // client -> public
+	Active  bool      `json:"active"`
+	Killed  bool      `json:"killed,omitempty"`
+}
+
+// ServerStats aggregates counters for the admin panel.
+type ServerStats struct {
+	TotalSessions int64 `json:"totalSessions"`
+	TotalStreams  int64 `json:"totalStreams"`
+	TotalBytesIn  int64 `json:"totalBytesIn"`
+	TotalBytesOut int64 `json:"totalBytesOut"`
+	AuthFails     int64 `json:"authFails"`
+}
+
+// rateBucket is a token-bucket style limiter for brute-force protection.
+type rateBucket struct {
+	hits    int
+	blocked time.Time
+}
+
+const (
+	historyLimit = 500
+	maxAuthFails = 5
+	authBanTime  = 15 * time.Minute
+)
 
 // ClientConn wraps one authenticated control connection.
 type ClientConn struct {
@@ -51,12 +95,20 @@ type ClientConn struct {
 	sess     string
 	mode     string
 	port     int
+	ip       string
 	wmu      sync.Mutex
 	conn     net.Conn
 	streams  map[uint32]*PublicStream
 	smu      sync.Mutex
 	lastSeen time.Time
+	started  time.Time
 	closed   bool
+
+	// per-connection stats (atomic-ish under smu)
+	statsMu   sync.Mutex
+	streamsN  int64
+	bytesIn   int64
+	bytesOut  int64
 }
 
 // PublicStream is one end-user connection being proxied.
@@ -73,6 +125,9 @@ func NewTunnelServer(secret string, filter *ContentFilter, idle time.Duration) *
 		Secret:      secret,
 		Filter:      filter,
 		IdleTimeout: idle,
+		history:     []HistoryEntry{},
+		bannedIP:    map[string]time.Time{},
+		rateAuth:    map[string]*rateBucket{},
 	}
 }
 
@@ -127,6 +182,18 @@ func (s *TunnelServer) Register(cc *ClientConn, requested string) (string, bool,
 	if base == "" {
 		base = randLabel()
 	}
+
+	// If another LIVE client holds the requested label, take it over
+	// when its control conn is dead, otherwise pick a free variant
+	// (name2, name3, ... then random). Two users never share a host.
+	if existing, ok := s.byHost[fqdn(base)]; ok && existing != cc {
+		if !existing.isAlive() {
+			// stale registration: reclaim the label
+			existing.closed = true
+			existing.conn.Close()
+			delete(s.byHost, fqdn(base))
+		}
+	}
 	label := base
 	for i := 0; i < 8; i++ {
 		if existing, ok := s.byHost[fqdn(label)]; !ok || existing == cc {
@@ -170,6 +237,16 @@ func rememberSessHost(sess, host string) {
 }
 
 // Unregister removes a client's mappings.
+
+// isAlive reports whether the control connection is still usable.
+// A stale registration (dead conn, last seen long ago) can be reclaimed.
+func (cc *ClientConn) isAlive() bool {
+	if cc.closed || cc.conn == nil {
+		return false
+	}
+	// the ping loop refreshes lastSeen; anything older is a zombie
+	return time.Since(cc.lastSeen) < 90*time.Second
+}
 func (s *TunnelServer) Unregister(cc *ClientConn) {
 	s.mu.Lock()
 	if cc.host != "" {
@@ -234,6 +311,7 @@ func (cc *ClientConn) HandleControl() {
 		cc.conn.SetReadDeadline(time.Now().Add(60 * time.Second))
 		typ, payload, err := ReadFrame(cc.conn)
 		if err != nil {
+			cc.srv.finishSession(cc, false)
 			return
 		}
 		cc.lastSeen = time.Now()
@@ -247,6 +325,9 @@ func (cc *ClientConn) HandleControl() {
 				continue
 			}
 			id := GetU32(payload[:4])
+			cc.statsMu.Lock()
+			cc.bytesOut += int64(len(payload) - 4)
+			cc.statsMu.Unlock()
 			st := cc.getStream(id)
 			if st != nil {
 				st.conn.SetWriteDeadline(time.Now().Add(30 * time.Second))
@@ -270,9 +351,17 @@ func (cc *ClientConn) HandleControl() {
 func (cc *ClientConn) StartStream(pc net.Conn, hostHint string) error {
 	id := cc.srv.nextID()
 	st := &PublicStream{id: id, client: cc, conn: pc}
+	remote := "?"
+	if ra := pc.RemoteAddr(); ra != nil {
+		remote = ra.String()
+	}
+	log.Printf("[dt] conn %s -> %s stream=%d", remote, cc.host, id)
 	cc.smu.Lock()
 	cc.streams[id] = st
 	cc.smu.Unlock()
+	cc.statsMu.Lock()
+	cc.streamsN++
+	cc.statsMu.Unlock()
 
 	payload := append(u32b(id), []byte(hostHint)...)
 	if err := cc.writeFrame(PktOpen, payload); err != nil {
@@ -289,6 +378,9 @@ func (cc *ClientConn) StartStream(pc net.Conn, hostHint string) error {
 			pc.SetReadDeadline(time.Now().Add(5 * time.Minute))
 			n, err := pc.Read(buf)
 			if n > 0 {
+				cc.statsMu.Lock()
+				cc.bytesIn += int64(n)
+				cc.statsMu.Unlock()
 				frame := append(u32b(id), buf[:n]...)
 				if werr := cc.writeFrame(PktData, frame); werr != nil {
 					cc.closeStream(id)
@@ -336,6 +428,22 @@ func (cc *ClientConn) closeStreams() {
 // ServeControlConn performs Hello/Welcome auth on a fresh TLS conn.
 func (s *TunnelServer) ServeControlConn(conn net.Conn) {
 	defer conn.Close()
+	ip := "?"
+	if ra := conn.RemoteAddr(); ra != nil {
+		ip = hostOnly(ra.String())
+	}
+
+	// banned IP check
+	if s.IsIPBanned(ip) {
+		log.Printf("[dt] rejected banned ip %s", ip)
+		return
+	}
+	// brute-force lockout check
+	if s.authBlocked(ip) {
+		WriteFrame(conn, PktDenied, []byte("rate limited"))
+		return
+	}
+
 	conn.SetDeadline(time.Now().Add(20 * time.Second))
 	typ, payload, err := ReadFrame(conn)
 	if err != nil || typ != PktHello {
@@ -355,9 +463,11 @@ func (s *TunnelServer) ServeControlConn(conn net.Conn) {
 	}
 	if !serveAuth(token, s.Secret) {
 		WriteFrame(conn, PktDenied, []byte("auth failed"))
-		log.Printf("[dt] auth failed sess=%s", hello.Sess)
+		s.authFail(ip)
+		log.Printf("[dt] auth failed ip=%s sess=%s", ip, hello.Sess)
 		return
 	}
+	s.authOK(ip)
 
 	if !s.Filter.CheckHost(hello.Subdomain) {
 		WriteFrame(conn, PktDenied, []byte("subdomain rejected"))
@@ -369,9 +479,11 @@ func (s *TunnelServer) ServeControlConn(conn net.Conn) {
 		sess:     hello.Sess,
 		mode:     hello.Mode,
 		port:     hello.LocalPort,
+		ip:       ip,
 		conn:     conn,
 		streams:  map[uint32]*PublicStream{},
 		lastSeen: time.Now(),
+		started:  time.Now(),
 	}
 
 	host, resumed, err := s.Register(cc, hello.Subdomain)
@@ -388,7 +500,9 @@ func (s *TunnelServer) ServeControlConn(conn net.Conn) {
 	}
 	conn.SetDeadline(time.Time{})
 
-	log.Printf("[dt] client %s host=%s mode=%s resumed=%v", platformTag(), host, cc.mode, resumed)
+	s.recordSession(cc, resumed)
+
+	log.Printf("[dt] client %s ip=%s host=%s mode=%s resumed=%v", platformTag(), ip, host, cc.mode, resumed)
 	cc.HandleControl()
 }
 

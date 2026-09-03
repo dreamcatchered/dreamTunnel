@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"log"
 	"net"
-	"os"
+	"net/http"
 	"strings"
 	"time"
 )
@@ -20,6 +20,9 @@ type serverConfig struct {
 	FilterEnabled bool
 	IdleTimeout   time.Duration
 	CertDir       string
+	AdminAddr     string // admin panel listen, default 127.0.0.1:8484
+	AdminUser     string
+	AdminPass     string
 }
 
 func loadServerConfig(path string) (*serverConfig, error) {
@@ -30,6 +33,8 @@ func loadServerConfig(path string) (*serverConfig, error) {
 		Domain:      "maiuni.online",
 		IdleTimeout: 10 * time.Minute,
 		CertDir:     "/etc/dreamtunnel/certs/wildcard",
+		AdminAddr:   "127.0.0.1:8484",
+		AdminUser:   "admin",
 	}
 	env := dotEnv(path)
 	if v, ok := env["DT_SECRET"]; ok && v != "" {
@@ -58,8 +63,20 @@ func loadServerConfig(path string) (*serverConfig, error) {
 	if v, ok := env["DT_CERT_DIR"]; ok && v != "" {
 		cfg.CertDir = v
 	}
+	if v, ok := env["DT_ADMIN_ADDR"]; ok && v != "" {
+		cfg.AdminAddr = v
+	}
+	if v, ok := env["DT_ADMIN_USER"]; ok && v != "" {
+		cfg.AdminUser = v
+	}
+	if v, ok := env["DT_ADMIN_PASS"]; ok && v != "" {
+		cfg.AdminPass = v
+	}
 	if cfg.Secret == "" {
 		return nil, fmt.Errorf("DT_SECRET is required in %s", path)
+	}
+	if cfg.AdminPass == "" {
+		return nil, fmt.Errorf("DT_ADMIN_PASS is required in %s (admin panel)", path)
 	}
 	return cfg, nil
 }
@@ -110,7 +127,11 @@ func runServer(args []string) error {
 	go edge.Serve(el)
 	log.Printf("[dt] edge listening on %s", cfg.EdgeAddr)
 
+	// admin panel (loopback only; front with nginx TLS for remote access)
+	admin := newAdminServer(srv, cfg.AdminUser, cfg.AdminPass)
+	go http.ListenAndServe(cfg.AdminAddr, admin.Handler())
+	log.Printf("[dt] admin panel on %s (login %s)", cfg.AdminAddr, cfg.AdminUser)
+
 	select {}
 }
 
-var _ = os.Args

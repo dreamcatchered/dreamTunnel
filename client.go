@@ -156,7 +156,14 @@ func runTunnel(mode string, args []string) error {
 		cancel()
 	}()
 
-	t := &TunnelClient{cfg: cfg, mode: mode, port: port, streams: map[uint32]net.Conn{}}
+	t := &TunnelClient{
+		cfg:     cfg,
+		mode:    mode,
+		port:    port,
+		streams: map[uint32]net.Conn{},
+		insp:    map[uint32]*httpInspector{},
+		tlog:    newTunnelLogger(),
+	}
 	t.SetRunCtx(ctx)
 	return t.Run(ctx)
 }
@@ -174,7 +181,9 @@ type TunnelClient struct {
 	conn    net.Conn
 	wmu     sync.Mutex
 	streams map[uint32]net.Conn
+	insp    map[uint32]*httpInspector
 
+	tlog    *tunnelLogger
 	attempt int
 }
 
@@ -265,8 +274,10 @@ func (t *TunnelClient) connectOnce(first bool) error {
 	t.mu.Unlock()
 
 	scheme := "https"
+	local := "http://127.0.0.1:" + t.port
 	if t.mode == "tcp" {
 		scheme = "tcp"
+		local = "tcp://127.0.0.1:" + t.port
 	}
 	url := fmt.Sprintf("%s://%s", scheme, wel.Host)
 	if first || wel.Reconnect {
@@ -274,9 +285,12 @@ func (t *TunnelClient) connectOnce(first bool) error {
 		if wel.Reconnect {
 			status = "reconnected — session restored"
 		}
-		fmt.Printf("\n  dreamTunnel — %s\n  local port %s -> %s\n  press Ctrl+C to stop\n\n", status, t.port, url)
+		fmt.Printf("\n  dreamTunnel — %s\n\n", status)
+		fmt.Printf("  Forwarding   %s -> %s\n", url, local)
+		fmt.Printf("  Connections  %s\n\n", url)
+		fmt.Printf("  Press Ctrl+C to stop\n\n")
 	} else {
-		fmt.Printf("[dt] %s -> %s\n", t.port, url)
+		fmt.Printf("[dt] %s -> %s\n", local, url)
 	}
 
 	return t.readLoop(ctx0(), conn)
@@ -333,7 +347,15 @@ func (t *TunnelClient) readFrames(conn net.Conn) error {
 			}
 			id := GetU32(payload[:4])
 			if c := t.getStream(id); c != nil {
-				if _, err := c.Write(payload[4:]); err != nil {
+				data := payload[4:]
+				t.mu.Lock()
+				ins := t.insp[id]
+				t.mu.Unlock()
+				if ins != nil {
+					// data from the server is the browser's request
+					ins.FeedRequest(data)
+				}
+				if _, err := c.Write(data); err != nil {
 					t.closeLocal(id)
 				}
 			}
@@ -355,6 +377,11 @@ func (t *TunnelClient) openLocal(id uint32) {
 	}
 	t.mu.Lock()
 	t.streams[id] = c
+	var ins *httpInspector
+	if t.mode == "http" {
+		ins = newHTTPInspector(id, t)
+		t.insp[id] = ins
+	}
 	t.mu.Unlock()
 
 	go func() {
@@ -362,6 +389,10 @@ func (t *TunnelClient) openLocal(id uint32) {
 		for {
 			n, err := c.Read(buf)
 			if n > 0 {
+				if ins != nil {
+					// bytes read from the local service are the response
+					ins.FeedResponse(buf[:n])
+				}
 				frame := append(u32b(id), buf[:n]...)
 				if werr := t.writeFrame(PktData, frame); werr != nil {
 					c.Close()
@@ -372,6 +403,7 @@ func (t *TunnelClient) openLocal(id uint32) {
 				c.Close()
 				t.mu.Lock()
 				delete(t.streams, id)
+				delete(t.insp, id)
 				t.mu.Unlock()
 				t.writeFrame(PktClose, u32b(id))
 				return
@@ -390,6 +422,7 @@ func (t *TunnelClient) closeLocal(id uint32) {
 	t.mu.Lock()
 	c := t.streams[id]
 	delete(t.streams, id)
+	delete(t.insp, id)
 	t.mu.Unlock()
 	if c != nil {
 		c.Close()

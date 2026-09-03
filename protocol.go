@@ -19,6 +19,7 @@ const (
 	PktOpen    byte = 0x06 // server -> client: uint32 streamID + host hint
 	PktData    byte = 0x07 // either: uint32 streamID + payload
 	PktClose   byte = 0x08 // either: uint32 streamID
+	PktLog     byte = 0x09 // client -> server: LogMsg JSON (HTTP req/resp for display)
 )
 
 // MaxPayload guards a single Data frame size.

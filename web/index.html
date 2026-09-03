@@ -22,12 +22,12 @@ body{font-family:var(--font);font-weight:400;background:var(--paper);color:var(-
 a{color:inherit;text-decoration:none;}
 :focus-visible{outline:2px solid #000;outline-offset:3px;}
 
-/* registration bar */
+/* top bar */
 .regbar{position:fixed;top:0;left:0;right:0;height:52px;border-bottom:var(--line);background:var(--paper);z-index:50;display:grid;grid-template-columns:1fr auto 1fr;align-items:center;padding:0 24px;}
 .regbar .logo{font-size:16px;letter-spacing:-.01em;}
 .regbar .tag{color:var(--graphite);font-size:13px;}
 .regbar .links{text-align:right;font-size:14px;}
-.regbar .links a{margin-left:18px;}
+.regbar .links a{margin-left:18px;padding:2px 4px;}
 .regbar .links a:hover{background:#000;color:#fff;}
 
 /* hero */
@@ -41,9 +41,14 @@ a{color:inherit;text-decoration:none;}
 .quickstart h2{font-size:clamp(40px,5vw,70px);line-height:.87;letter-spacing:-.045em;margin-bottom:60px;}
 .qs-grid{display:grid;grid-template-columns:1fr 1.3fr;gap:20px;}
 .qs-label{color:var(--graphite);font-size:14px;margin-bottom:10px;}
-pre{background:#000;color:#fff;padding:22px;font-size:clamp(14px,1.6vw,18px);line-height:1.5;overflow-x:auto;white-space:pre-wrap;word-break:break-all;}
+pre{background:#000;color:#fff;padding:22px;font-size:clamp(14px,1.6vw,18px);line-height:1.5;overflow-x:auto;white-space:pre-wrap;word-break:break-all;position:relative;}
 pre .c{color:#999;}
-pre .g{color:#fff;font-weight:400;}
+.copybox{position:relative;}
+.copybox pre{padding-right:64px;}
+.copy-btn{position:absolute;top:10px;right:10px;min-height:34px;padding:4px 12px;background:#fff;color:#000;border:1px solid #fff;font:inherit;font-size:13px;cursor:pointer;}
+.copy-btn:hover{background:#000;color:#fff;border-color:#000;}
+.copy-btn:active{transform:translateY(1px);}
+.copy-btn.done{background:#fff;color:#000;}
 .qs-note{margin-top:14px;font-size:14px;color:var(--graphite);max-width:48ch;line-height:1.45;}
 
 /* features */
@@ -54,8 +59,11 @@ pre .g{color:#fff;font-weight:400;}
 .f-cell .num{color:var(--graphite);font-size:14px;margin-bottom:16px;}
 .f-cell h3{font-size:clamp(22px,2.4vw,32px);line-height:.95;letter-spacing:-.03em;margin-bottom:16px;}
 .f-cell p{font-size:15px;line-height:1.5;color:#444;max-width:38ch;}
-.f-cell a{display:inline-block;margin-top:16px;font-size:14px;border-bottom:1px solid #000;}
-.f-cell a:hover{background:#000;color:#fff;}
+
+/* how it works */
+.how{max-width:1440px;margin:0 auto;padding:0 55px 150px;}
+.how h2{font-size:clamp(40px,5vw,70px);line-height:.87;letter-spacing:-.045em;margin-bottom:60px;}
+.how pre{margin-bottom:40px;white-space:pre;}
 
 /* docs */
 .docs{max-width:1440px;margin:0 auto;padding:0 55px 150px;}
@@ -69,16 +77,18 @@ pre .g{color:#fff;font-weight:400;}
 .doc-sec th{color:#999;font-weight:400;padding:10px 12px 10px 0;border-bottom:var(--line);}
 .doc-sec td{padding:14px 12px 14px 0;border-bottom:var(--line);vertical-align:top;font-size:15px;}
 .doc-sec code{background:#000;color:#fff;padding:2px 6px;font-size:14px;font-family:inherit;}
-
-/* how it works */
-.how{max-width:1440px;margin:0 auto;padding:0 55px 150px;}
-.how h2{font-size:clamp(40px,5vw,70px);line-height:.87;letter-spacing:-.045em;margin-bottom:60px;}
-.how pre{margin-bottom:40px;}
+.doc-sec .cmd{position:relative;display:inline-block;}
+.doc-sec .cmd code{padding-right:40px;display:inline-block;}
+.doc-sec .cmd .copy-btn{position:absolute;top:0;right:0;background:#000;color:#fff;border:1px solid #444;min-height:24px;padding:0 8px;font-size:12px;cursor:pointer;}
+.doc-sec .cmd .copy-btn:hover{background:#fff;color:#000;}
 
 /* footer */
 footer{border-top:var(--line);}
 .foot-in{max-width:1440px;margin:0 auto;padding:45px 55px;display:grid;grid-template-columns:1fr 1fr;gap:20px;font-size:14px;}
 .foot-in .r{text-align:right;color:var(--graphite);}
+.foot-in a{border-bottom:1px solid #000;padding-bottom:1px;}
+.foot-in a:hover{background:#000;color:#fff;}
+.gh{display:inline-flex;align-items:baseline;gap:6px;}
 
 /* arrow glyph */
 .arr{display:inline-block;transform:translateY(-2px);}
@@ -99,10 +109,11 @@ footer{border-top:var(--line);}
 
 <div class="regbar">
   <div class="logo">dreamTunnel</div>
-  <div class="tag">мгновенные публичные туннели · maiuni.online</div>
+  <div class="tag"></div>
   <div class="links">
     <a href="#quickstart">Установка <span class="arr">↗</span></a>
     <a href="#docs">Документация <span class="arr">↗</span></a>
+    <a href="https://github.com/dreamcatchered/dreamTunnel">GitHub <span class="arr">↗</span></a>
   </div>
 </div>
 
@@ -119,18 +130,33 @@ footer{border-top:var(--line);}
   <div class="qs-grid">
     <div>
       <div class="qs-label">Windows — PowerShell</div>
-      <pre>iwr -useb https://tunnel.swag.best/install.ps1 | iex</pre>
+      <div class="copybox">
+        <pre id="cmd-win">iwr -useb https://tunnel.swag.best/install.ps1 | iex</pre>
+        <button class="copy-btn" data-copy="cmd-win" aria-label="Скопировать команду">Копировать</button>
+      </div>
       <div class="qs-label" style="margin-top:28px;">Linux / macOS</div>
-      <pre>curl -fsSL https://tunnel.swag.best/install.sh | bash</pre>
+      <div class="copybox">
+        <pre id="cmd-unix">curl -fsSL https://tunnel.swag.best/install.sh | bash</pre>
+        <button class="copy-btn" data-copy="cmd-unix" aria-label="Скопировать команду">Копировать</button>
+      </div>
     </div>
     <div>
       <div class="qs-label">Запуск туннеля</div>
-      <pre>dt http 8080
+      <div class="copybox">
+        <pre id="cmd-run">dt http 8080
 
   <span class="c">dreamTunnel — tunnel online</span>
-  local port 8080 -&gt; https://my-site.maiuni.online
-  press Ctrl+C to stop</pre>
-      <p class="qs-note">Одна команда — и любой HTTP-сервер на порту 8080 доступен по адресу <strong>https://my-site.maiuni.online</strong>. Валидный сертификат уже включён: никаких предупреждений браузера.</p>
+
+  Forwarding   https://my-site.maiuni.online -&gt; http://127.0.0.1:8080
+  Connections  https://my-site.maiuni.online
+
+  Press Ctrl+C to stop
+
+  <span class="c">GET /</span>          200 OK        12.4ms
+  <span class="c">GET /api</span>        200 OK         3.1ms</pre>
+        <button class="copy-btn" data-copy-src="dt http 8080" aria-label="Скопировать команду">Копировать</button>
+      </div>
+      <p class="qs-note">Одна команда — и любой HTTP-сервер на порту 8080 доступен по адресу <strong>https://my-site.maiuni.online</strong>. Валидный сертификат уже включён: никаких предупреждений браузера. В термиале видно каждый запрос: метод, путь, код ответа и время.</p>
     </div>
   </div>
 </section>
@@ -160,13 +186,13 @@ footer{border-top:var(--line);}
     </div>
     <div class="f-cell">
       <div class="num">05</div>
-      <h3>Кроссплатформенно</h3>
-      <p>Один бинарник на Go: Windows, Linux, macOS — amd64 и arm64. Ставится скриптом, ничего не требует.</p>
+      <h3>Живые логи запросов</h3>
+      <p>Каждое обращение к туннелю видно в консоли: метод, путь, код ответа, время выполнения — как у больших, только свои.</p>
     </div>
     <div class="f-cell">
       <div class="num">06</div>
-      <h3>Self-hosted</h3>
-      <p>Весь трафик идёт через ваш сервер. Никаких чужих облаков, логов и лимитов. Исходный код открыт.</p>
+      <h3>Кроссплатформенно</h3>
+      <p>Один бинарник на Go: Windows, Linux, macOS — amd64 и arm64. Ставится скриптом, ничего не требует.</p>
     </div>
   </div>
 </section>
@@ -190,12 +216,12 @@ footer{border-top:var(--line);}
     <div class="body">
       <table>
         <tr><th>Команда</th><th>Что делает</th></tr>
-        <tr><td><code>dt http 8080</code></td><td>Туннель к локальному HTTP-серверу на порту 8080. Поддомен — случайный.</td></tr>
-        <tr><td><code>dt http 8080 my-api</code></td><td>То же, но с постоянным именем: <code>https://my-api.maiuni.online</code></td></tr>
-        <tr><td><code>dt http 8080 --server host:port</code></td><td>Указать другой сервер dreamTunnel.</td></tr>
-        <tr><td><code>dt tcp 25565</code></td><td>Сырой TCP-туннель (например, игровой сервер).</td></tr>
-        <tr><td><code>dt login</code></td><td>Сохранить сервер и токен в <code>~/.dreamtunnel/config.env</code>.</td></tr>
-        <tr><td><code>dt config</code></td><td>Показать текущую конфигурацию.</td></tr>
+        <tr><td><span class="cmd"><code>dt http 8080</code><button class="copy-btn" data-copy-src="dt http 8080">копир.</button></span></td><td>Туннель к локальному HTTP-серверу на порту 8080. Поддомен — случайный.</td></tr>
+        <tr><td><span class="cmd"><code>dt http 8080 my-api</code><button class="copy-btn" data-copy-src="dt http 8080 my-api">копир.</button></span></td><td>То же, но с постоянным именем: <code>https://my-api.maiuni.online</code></td></tr>
+        <tr><td><span class="cmd"><code>dt http 8080 --server host:port</code><button class="copy-btn" data-copy-src="dt http 8080 --server host:port">копир.</button></span></td><td>Указать другой сервер dreamTunnel.</td></tr>
+        <tr><td><span class="cmd"><code>dt tcp 25565</code><button class="copy-btn" data-copy-src="dt tcp 25565">копир.</button></span></td><td>Сырой TCP-туннель (например, игровой сервер).</td></tr>
+        <tr><td><span class="cmd"><code>dt login</code><button class="copy-btn" data-copy-src="dt login">копир.</button></span></td><td>Сохранить сервер и токен в <code>~/.dreamtunnel/config.env</code>.</td></tr>
+        <tr><td><span class="cmd"><code>dt config</code><button class="copy-btn" data-copy-src="dt config">копир.</button></span></td><td>Показать текущую конфигурацию.</td></tr>
       </table>
     </div>
   </div>
@@ -219,26 +245,59 @@ footer{border-top:var(--line);}
   <div class="doc-sec">
     <h3>Свой сервер</h3>
     <div class="body">
-      <p>Релей — это тот же бинарник: <code>dt server</code>. Конфиг в <code>/etc/dreamtunnel/server.conf</code> (секрет, домен, порты, фильтр). systemd-юнит и wildcard-сертификат через acme.sh DNS-01 — всё как в описании проекта на GitHub.</p>
-      <p class="dim">Пул поддоменов реализован wildcard-записью DNS: *.maiuni.online → IP сервера. Никаких отдельных записей создавать не нужно — поддомены виртуальные, сервер их раздаёт динамически.</p>
-    </div>
-  </div>
-
-  <div class="doc-sec">
-    <h3>Безопасность</h3>
-    <div class="body">
-      <p>Канал клиент-сервер зашифрован TLS. Edge терминирует TLS wildcard-сертификатом и проксирует расшифрованный HTTP к вашему локальному сервису. Доступ к серверу только по токену.</p>
-      <p class="dim">На сервере есть переключаемый фильтр, который блокирует выдачу туннелей для очевидно нелегального контента (защита детей). Включается флагом DT_FILTER_ENABLED=1 в конфиге сервера.</p>
+      <p>Релей — это тот же бинарник: <code>dt server</code>. Конфиг в <code>/etc/dreamtunnel/server.conf</code> (секрет, домен, порты, логин/пароль админки). systemd-юнит и wildcard-сертификат через acme.sh DNS-01 — всё как в описании проекта на GitHub.</p>
+      <p class="dim">Пул поддоменов реализован wildcard-записью DNS: *.maiuni.online → IP сервера. Никаких отдельных записей создавать не нужно — поддомены виртуальные, сервер раздаёт их динамически и следит, чтобы два клиента никогда не получили один и тот же.</p>
     </div>
   </div>
 </section>
 
 <footer>
   <div class="foot-in">
-    <div>dreamTunnel · self-hosted туннели · экосистема swag.best</div>
-    <div class="r">сервер: tunnel.swag.best · поддомены: *.maiuni.online <span class="arr">↗</span></div>
+    <div>
+      <a class="gh" href="https://github.com/dreamcatchered/dreamTunnel">dreamTunnel — открытый исходный код <span class="arr">↗</span></a>
+    </div>
+    <div class="r">сервер: tunnel.swag.best · поддомены: *.maiuni.online</div>
   </div>
 </footer>
+
+<script>
+// copy buttons: data-copy copies the textContent of an element by id,
+// data-copy-src copies the literal string.
+document.querySelectorAll('.copy-btn').forEach(btn => {
+  btn.addEventListener('click', async () => {
+    let text = '';
+    if (btn.dataset.copy) {
+      const el = document.getElementById(btn.dataset.copy);
+      // for the run example, only the first line is the command
+      if (btn.dataset.copy === 'cmd-run') {
+        text = 'dt http 8080';
+      } else if (el) {
+        text = el.textContent.trim();
+      }
+    } else if (btn.dataset.copySrc) {
+      text = btn.dataset.copySrc;
+    }
+    if (!text) return;
+    try {
+      await navigator.clipboard.writeText(text);
+    } catch (e) {
+      // fallback for older browsers / non-secure contexts
+      const ta = document.createElement('textarea');
+      ta.value = text;
+      ta.style.position = 'fixed';
+      ta.style.opacity = '0';
+      document.body.appendChild(ta);
+      ta.select();
+      document.execCommand('copy');
+      ta.remove();
+    }
+    const prev = btn.textContent;
+    btn.textContent = 'Скопировано';
+    btn.classList.add('done');
+    setTimeout(() => { btn.textContent = prev; btn.classList.remove('done'); }, 1600);
+  });
+});
+</script>
 
 </body>
 </html>

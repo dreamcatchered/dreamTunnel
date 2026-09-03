@@ -44,11 +44,17 @@ a{color:inherit;text-decoration:none;}
 pre{background:#000;color:#fff;padding:22px;font-size:clamp(14px,1.6vw,18px);line-height:1.5;overflow-x:auto;white-space:pre-wrap;word-break:break-all;position:relative;}
 pre .c{color:#999;}
 .copybox{position:relative;}
-.copybox pre{padding-right:64px;}
-.copy-btn{position:absolute;top:10px;right:10px;min-height:34px;padding:4px 12px;background:#fff;color:#000;border:1px solid #fff;font:inherit;font-size:13px;cursor:pointer;}
-.copy-btn:hover{background:#000;color:#fff;border-color:#000;}
+.copybox pre{padding-right:56px;}
+.copy-btn{position:absolute;top:8px;right:8px;width:36px;height:36px;display:flex;align-items:center;justify-content:center;background:transparent;color:#fff;border:1px solid #333;font:inherit;font-size:16px;line-height:1;cursor:pointer;opacity:0;transition:opacity .15s ease;}
+.copybox:hover .copy-btn,.copy-btn:focus-visible,.copy-btn.done{opacity:1;}
+.copy-btn:hover{background:#fff;color:#000;border-color:#fff;}
 .copy-btn:active{transform:translateY(1px);}
-.copy-btn.done{background:#fff;color:#000;}
+.copy-btn.done{background:#fff;color:#000;border-color:#fff;}
+.copy-btn svg{width:16px;height:16px;display:block;}
+@media (hover:none){
+  .copy-btn{opacity:.55;}
+  .copybox pre{padding-right:56px;}
+}
 .qs-note{margin-top:14px;font-size:14px;color:var(--graphite);max-width:48ch;line-height:1.45;}
 
 /* features */
@@ -77,10 +83,15 @@ pre .c{color:#999;}
 .doc-sec th{color:#999;font-weight:400;padding:10px 12px 10px 0;border-bottom:var(--line);}
 .doc-sec td{padding:14px 12px 14px 0;border-bottom:var(--line);vertical-align:top;font-size:15px;}
 .doc-sec code{background:#000;color:#fff;padding:2px 6px;font-size:14px;font-family:inherit;}
-.doc-sec .cmd{position:relative;display:inline-block;}
-.doc-sec .cmd code{padding-right:40px;display:inline-block;}
-.doc-sec .cmd .copy-btn{position:absolute;top:0;right:0;background:#000;color:#fff;border:1px solid #444;min-height:24px;padding:0 8px;font-size:12px;cursor:pointer;}
+.doc-sec .cmd{position:relative;display:inline-block;cursor:pointer;}
+.doc-sec .cmd code{padding-right:26px;display:inline-block;}
+.doc-sec .cmd .copy-btn{position:absolute;top:-1px;right:0;width:22px;height:22px;display:flex;align-items:center;justify-content:center;background:#000;color:#fff;border:none;font:inherit;font-size:11px;line-height:1;cursor:pointer;opacity:0;transition:opacity .15s ease;}
+.doc-sec .cmd:hover .copy-btn,.doc-sec .cmd .copy-btn:focus-visible,.doc-sec .cmd .copy-btn.done{opacity:1;}
 .doc-sec .cmd .copy-btn:hover{background:#fff;color:#000;}
+.doc-sec .cmd .copy-btn svg{width:11px;height:11px;display:block;}
+@media (hover:none){
+  .doc-sec .cmd .copy-btn{opacity:.5;}
+}
 
 /* footer */
 footer{border-top:var(--line);}
@@ -132,12 +143,12 @@ footer{border-top:var(--line);}
       <div class="qs-label">Windows — PowerShell</div>
       <div class="copybox">
         <pre id="cmd-win">iwr -useb https://tunnel.swag.best/install.ps1 | iex</pre>
-        <button class="copy-btn" data-copy="cmd-win" aria-label="Скопировать команду">Копировать</button>
+        <button class="copy-btn" data-copy="cmd-win" aria-label="Скопировать команду" title="Скопировать"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="9" y="9" width="13" height="13" rx="0"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg></button>
       </div>
       <div class="qs-label" style="margin-top:28px;">Linux / macOS</div>
       <div class="copybox">
         <pre id="cmd-unix">curl -fsSL https://tunnel.swag.best/install.sh | bash</pre>
-        <button class="copy-btn" data-copy="cmd-unix" aria-label="Скопировать команду">Копировать</button>
+        <button class="copy-btn" data-copy="cmd-unix" aria-label="Скопировать команду" title="Скопировать"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="9" y="9" width="13" height="13" rx="0"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg></button>
       </div>
     </div>
     <div>
@@ -154,7 +165,7 @@ footer{border-top:var(--line);}
 
   <span class="c">GET /</span>          200 OK        12.4ms
   <span class="c">GET /api</span>        200 OK         3.1ms</pre>
-        <button class="copy-btn" data-copy-src="dt http 8080" aria-label="Скопировать команду">Копировать</button>
+        <button class="copy-btn" data-copy-src="dt http 8080" aria-label="Скопировать команду" title="Скопировать"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="9" y="9" width="13" height="13" rx="0"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg></button>
       </div>
       <p class="qs-note">Одна команда — и любой HTTP-сервер на порту 8080 доступен по адресу <strong>https://my-site.maiuni.online</strong>. Валидный сертификат уже включён: никаких предупреждений браузера. В термиале видно каждый запрос: метод, путь, код ответа и время.</p>
     </div>
@@ -216,12 +227,12 @@ footer{border-top:var(--line);}
     <div class="body">
       <table>
         <tr><th>Команда</th><th>Что делает</th></tr>
-        <tr><td><span class="cmd"><code>dt http 8080</code><button class="copy-btn" data-copy-src="dt http 8080">копир.</button></span></td><td>Туннель к локальному HTTP-серверу на порту 8080. Поддомен — случайный.</td></tr>
-        <tr><td><span class="cmd"><code>dt http 8080 my-api</code><button class="copy-btn" data-copy-src="dt http 8080 my-api">копир.</button></span></td><td>То же, но с постоянным именем: <code>https://my-api.maiuni.online</code></td></tr>
-        <tr><td><span class="cmd"><code>dt http 8080 --server host:port</code><button class="copy-btn" data-copy-src="dt http 8080 --server host:port">копир.</button></span></td><td>Указать другой сервер dreamTunnel.</td></tr>
-        <tr><td><span class="cmd"><code>dt tcp 25565</code><button class="copy-btn" data-copy-src="dt tcp 25565">копир.</button></span></td><td>Сырой TCP-туннель (например, игровой сервер).</td></tr>
-        <tr><td><span class="cmd"><code>dt login</code><button class="copy-btn" data-copy-src="dt login">копир.</button></span></td><td>Сохранить сервер и токен в <code>~/.dreamtunnel/config.env</code>.</td></tr>
-        <tr><td><span class="cmd"><code>dt config</code><button class="copy-btn" data-copy-src="dt config">копир.</button></span></td><td>Показать текущую конфигурацию.</td></tr>
+        <tr><td><span class="cmd"><code>dt http 8080</code><button class="copy-btn" data-copy-src="dt http 8080" aria-label="Скопировать" title="Скопировать"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="9" y="9" width="13" height="13" rx="0"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg></button></span></td><td>Туннель к локальному HTTP-серверу на порту 8080. Поддомен — случайный.</td></tr>
+        <tr><td><span class="cmd"><code>dt http 8080 my-api</code><button class="copy-btn" data-copy-src="dt http 8080 my-api" aria-label="Скопировать" title="Скопировать"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="9" y="9" width="13" height="13" rx="0"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg></button></span></td><td>То же, но с постоянным именем: <code>https://my-api.maiuni.online</code></td></tr>
+        <tr><td><span class="cmd"><code>dt http 8080 --server host:port</code><button class="copy-btn" data-copy-src="dt http 8080 --server host:port" aria-label="Скопировать" title="Скопировать"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="9" y="9" width="13" height="13" rx="0"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg></button></span></td><td>Указать другой сервер dreamTunnel.</td></tr>
+        <tr><td><span class="cmd"><code>dt tcp 25565</code><button class="copy-btn" data-copy-src="dt tcp 25565" aria-label="Скопировать" title="Скопировать"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="9" y="9" width="13" height="13" rx="0"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg></button></span></td><td>Сырой TCP-туннель (например, игровой сервер).</td></tr>
+        <tr><td><span class="cmd"><code>dt login</code><button class="copy-btn" data-copy-src="dt login" aria-label="Скопировать" title="Скопировать"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="9" y="9" width="13" height="13" rx="0"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg></button></span></td><td>Сохранить сервер и токен в <code>~/.dreamtunnel/config.env</code>.</td></tr>
+        <tr><td><span class="cmd"><code>dt config</code><button class="copy-btn" data-copy-src="dt config" aria-label="Скопировать" title="Скопировать"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="9" y="9" width="13" height="13" rx="0"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg></button></span></td><td>Показать текущую конфигурацию.</td></tr>
       </table>
     </div>
   </div>
@@ -291,10 +302,10 @@ document.querySelectorAll('.copy-btn').forEach(btn => {
       document.execCommand('copy');
       ta.remove();
     }
-    const prev = btn.textContent;
-    btn.textContent = 'Скопировано';
+    const prev = btn.innerHTML;
+    btn.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 6L9 17l-5-5"/></svg>';
     btn.classList.add('done');
-    setTimeout(() => { btn.textContent = prev; btn.classList.remove('done'); }, 1600);
+    setTimeout(() => { btn.innerHTML = prev; btn.classList.remove('done'); }, 1400);
   });
 });
 </script>

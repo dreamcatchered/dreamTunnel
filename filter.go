@@ -19,7 +19,8 @@ type ContentFilter struct {
 
 // cat1 — unambiguous phrases (regexp-quoted, joined).
 var cat1Phrases = []string{
-	"child porn", "childporno", "kids porn", "kid porn", "children porn",
+	"child porn", "childporn", "childporno", "kids porn", "kidsporn",
+	"kid porn", "children porn", "childsex", "childsex",
 	"child sexual abuse", "child abuse material", "csam material",
 	"pedophile content", "pedo content", "порно с дет", "порно детей",
 	"секс с дет", "секс детей", "детское порно", "порно школьников",
@@ -74,13 +75,30 @@ func normalize(s string) string {
 	return strings.Join(out, " ")
 }
 
-// CheckHost decides whether a host may serve traffic.
+// CheckHost decides whether a host may serve traffic. Checks both cat1
+// phrases and a co-occurrence of label parts (e.g. "childporn" or
+// "kidsporn" as a host label).
 func (cf *ContentFilter) CheckHost(host string) bool {
 	if !cf.Enabled {
 		return true
 	}
 	n := normalize(host)
 	if cf.re.MatchString(n) {
+		cf.banned[host] = true
+		cf.hits++
+		return false
+	}
+	words := strings.Fields(n)
+	hasMinor, hasSexual := false, false
+	for _, w := range words {
+		if cat2Minor[w] {
+			hasMinor = true
+		}
+		if cat2Sexual[w] {
+			hasSexual = true
+		}
+	}
+	if hasMinor && hasSexual {
 		cf.banned[host] = true
 		cf.hits++
 		return false

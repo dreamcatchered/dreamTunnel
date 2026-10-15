@@ -1,52 +1,77 @@
+# dreamTunnel installer for Windows.
+#
+#   irm https://tunnel.swag.best/install.ps1 | iex
+#
+# The access token is already compiled into the binary, so there is nothing to
+# configure afterwards: `dt http 8080` works immediately.
 $ErrorActionPreference = "Stop"
-[Console]::OutputEncoding = [System.Text.Encoding]::UTF8
 
 $Domain = "tunnel.swag.best"
+$TunnelDomain = "maiuni.online"
 $BaseUrl = "https://$Domain"
 
-if ([Environment]::Is64BitProcess) {
-    $Arch = "amd64"
-} else {
-    $Arch = "386"
-}
+if ([Environment]::Is64BitProcess) { $Arch = "amd64" } else { $Arch = "386" }
 
 $InstallDir = Join-Path $env:LOCALAPPDATA "dreamtunnel"
 $Binary = "dt-windows-$Arch.exe"
-$Url = "$BaseUrl/releases/$Binary"
+$Url = "$BaseUrl/dl/$Binary"
 $ExePath = Join-Path $InstallDir "dt.exe"
 
 Write-Host ""
-Write-Host "  [+] dreamTunnel Installer" -ForegroundColor Cyan
-Write-Host "  [+] Platform: windows/$Arch" -ForegroundColor Cyan
+Write-Host "  [+] dreamTunnel installer"
+Write-Host "  [+] platform:    windows/$Arch"
+Write-Host "  [+] install dir: $InstallDir"
+Write-Host "  [+] downloading: $Url"
+Write-Host ""
 
 if (-not (Test-Path $InstallDir)) {
     New-Item -ItemType Directory -Path $InstallDir -Force | Out-Null
 }
 
-Write-Host "  [+] Downloading: $Url" -ForegroundColor Cyan
+[Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
 try {
-    [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
     Invoke-WebRequest -Uri $Url -OutFile $ExePath -UseBasicParsing
 } catch {
-    Write-Host "[-] Failed to download: $_" -ForegroundColor Red
+    Write-Host "[-] download failed: $_" -ForegroundColor Red
     exit 1
+}
+
+# Best-effort integrity check against the published SHA256SUMS file.
+try {
+    $sums = (Invoke-WebRequest -Uri "$BaseUrl/dl/SHA256SUMS" -UseBasicParsing).Content
+    $want = ($sums -split "`n" |
+        Where-Object { ($_ -split '\s+')[-1] -eq $Binary } |
+        ForEach-Object { ($_ -split '\s+')[0] } |
+        Select-Object -First 1)
+    if ($want) {
+        $got = (Get-FileHash -Path $ExePath -Algorithm SHA256).Hash.ToLower()
+        if ($got -ne $want.ToLower()) {
+            Remove-Item $ExePath -Force
+            Write-Host "[-] checksum mismatch for $Binary" -ForegroundColor Red
+            exit 1
+        }
+        Write-Host "  [+] checksum verified"
+    }
+} catch {
+    Write-Host "  [!] checksum check skipped" -ForegroundColor Yellow
 }
 
 $currentPath = [Environment]::GetEnvironmentVariable("PATH", "User")
 if ($currentPath -notlike "*$InstallDir*") {
     [Environment]::SetEnvironmentVariable("PATH", "$currentPath;$InstallDir", "User")
     $env:PATH = "$env:PATH;$InstallDir"
-    Write-Host "  [+] Added to user PATH: $InstallDir" -ForegroundColor Green
-    Write-Host "  [+] Open a NEW terminal to use dt" -ForegroundColor Yellow
+    Write-Host "  [+] added to user PATH: $InstallDir"
+    Write-Host "  [+] open a NEW terminal to use dt"
 }
 
 Write-Host ""
-Write-Host "  [+] Installed to: $ExePath" -ForegroundColor Green
+Write-Host "  [+] installed: $ExePath"
 Write-Host ""
-Write-Host "  Usage:" -ForegroundColor Cyan
-Write-Host "      dt http 8080              expose local HTTP server"
-Write-Host "      dt http 8080 my-site      custom subdomain -> https://my-site.maiuni.online"
+Write-Host "  ready to use, the access token is already built in:"
+Write-Host "      dt http 8080              expose a local HTTP server"
+Write-Host "      dt http 8080 my-site      -> https://my-site.$TunnelDomain"
 Write-Host "      dt tcp 25565              raw TCP tunnel"
+Write-Host "      dt http 8080 --json       machine-readable events"
 Write-Host ""
-Write-Host "  Docs: https://$Domain/" -ForegroundColor Cyan
+Write-Host "  site: https://$Domain/"
 Write-Host ""

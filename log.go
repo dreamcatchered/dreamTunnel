@@ -28,6 +28,10 @@ func (t *TunnelClient) logLine(v interface{}) {
 		t.tlog.mu.Lock()
 		t.tlog.started[m.ID] = time.Now()
 		t.tlog.mu.Unlock()
+		if jsonOut {
+			emitEvent("request", map[string]interface{}{"method": m.Method, "path": m.Path})
+			return
+		}
 		fmt.Fprintf(os.Stdout, "%-7s %s\n", m.Method, m.Path)
 	case inspectResp:
 		t.tlog.mu.Lock()
@@ -35,6 +39,13 @@ func (t *TunnelClient) logLine(v interface{}) {
 		delete(t.tlog.started, m.ID)
 		t.tlog.mu.Unlock()
 		d := time.Since(start).Round(time.Millisecond)
+		if jsonOut {
+			emitEvent("response", map[string]interface{}{
+				"status":      m.Status,
+				"duration_ms": d.Milliseconds(),
+			})
+			return
+		}
 		fmt.Fprintf(os.Stdout, "        %-4s %d %s\n", statusWord(m.Status), m.Status, d)
 	}
 }

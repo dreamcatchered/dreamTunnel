@@ -2,3 +2,9 @@ dist/
 *.exe
 dt
 dt2
+__pycache__/
+*.pyc
+.venv/
+*.egg-info/
+.pytest_cache/
+dreamtunnel

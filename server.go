@@ -21,6 +21,13 @@ type HelloMsg struct {
 	Mode      string `json:"mode"`
 	LocalPort int    `json:"port"`
 	Sess      string `json:"sess"`
+
+	// Enroll asks the server for a token of this device's own. It is only
+	// honoured when the presented token is the shared enrollment token.
+	Enroll bool `json:"enroll,omitempty"`
+	// Label and Platform describe the device for the admin panel.
+	Label    string `json:"label,omitempty"`
+	Platform string `json:"platform,omitempty"`
 }
 
 // WelcomeMsg is the server's reply.
@@ -30,6 +37,11 @@ type WelcomeMsg struct {
 	Mode      string `json:"mode"`
 	Reconnect bool   `json:"reconnect"`
 	Filter    bool   `json:"filter"`
+
+	// Issued carries a freshly issued device token; the client stores it and
+	// uses it from then on. DeviceID identifies the device on the server.
+	Issued   string `json:"issued,omitempty"`
+	DeviceID string `json:"device,omitempty"`
 }
 
 // TunnelServer hosts control connections and host -> conn routing.
@@ -39,8 +51,17 @@ type TunnelServer struct {
 	bySess  map[string]*ClientConn
 	counter uint32
 
-	Secret      string
-	PublicToken string // optional shared token that works without login
+	Secret string
+	// EnrollToken is the shared token compiled into official builds. It is a
+	// bootstrapping credential: it authorises a device to ask for a token of
+	// its own, and (unless RequireDevice is set) still opens a tunnel by
+	// itself for clients that have not enrolled yet.
+	EnrollToken string
+	// RequireDevice refuses the shared token as a tunnel credential, so only
+	// per-device tokens and the master secret work.
+	RequireDevice bool
+	// Devices stores the issued per-device tokens. Nil disables enrollment.
+	Devices     *DeviceStore
 	Filter      *ContentFilter
 	IdleTimeout time.Duration
 
@@ -97,6 +118,7 @@ type ClientConn struct {
 	mode     string
 	port     int
 	ip       string
+	device   string // per-device token id, empty for master/shared tokens
 	wmu      sync.Mutex
 	conn     net.Conn
 	streams  map[uint32]*PublicStream
@@ -119,17 +141,29 @@ type PublicStream struct {
 	conn   net.Conn
 }
 
-func NewTunnelServer(secret, publicToken string, filter *ContentFilter, idle time.Duration) *TunnelServer {
+// ServerOptions configures a TunnelServer.
+type ServerOptions struct {
+	Secret        string
+	EnrollToken   string
+	RequireDevice bool
+	Devices       *DeviceStore
+	Filter        *ContentFilter
+	IdleTimeout   time.Duration
+}
+
+func NewTunnelServer(o ServerOptions) *TunnelServer {
 	return &TunnelServer{
-		byHost:      map[string]*ClientConn{},
-		bySess:      map[string]*ClientConn{},
-		Secret:      secret,
-		PublicToken: publicToken,
-		Filter:      filter,
-		IdleTimeout: idle,
-		history:     []HistoryEntry{},
-		bannedIP:    map[string]time.Time{},
-		rateAuth:    map[string]*rateBucket{},
+		byHost:        map[string]*ClientConn{},
+		bySess:        map[string]*ClientConn{},
+		Secret:        o.Secret,
+		EnrollToken:   o.EnrollToken,
+		RequireDevice: o.RequireDevice,
+		Devices:       o.Devices,
+		Filter:        o.Filter,
+		IdleTimeout:   o.IdleTimeout,
+		history:       []HistoryEntry{},
+		bannedIP:      map[string]time.Time{},
+		rateAuth:      map[string]*rateBucket{},
 	}
 }
 
@@ -464,11 +498,35 @@ func (s *TunnelServer) ServeControlConn(conn net.Conn) {
 		}
 	}
 	authKind := ""
-	switch {
-	case serveAuth(token, s.Secret):
-		authKind = "master"
-	case s.PublicToken != "" && serveAuth(token, s.PublicToken):
-		authKind = "public"
+	deviceID := ""
+	issued := ""
+	if dec := s.classifyAuth(token, ip); dec.kind != "" {
+		authKind, deviceID = dec.kind, dec.deviceID
+	}
+	if authKind == "enroll" {
+		// The shared token is only a bootstrapping credential. It still opens
+		// a tunnel by itself (that is how clients that have never enrolled
+		// connect) unless the operator requires device tokens. With the Enroll
+		// flag set the server mints a token for this device instead.
+		switch {
+		case !hello.Enroll && s.RequireDevice:
+			WriteFrame(conn, PktDenied, []byte("device token required: run `dt enroll`"))
+			log.Printf("[dt] denied shared token ip=%s (device tokens required)", ip)
+			return
+		case !hello.Enroll:
+			authKind = "public"
+		case s.Devices == nil:
+			WriteFrame(conn, PktDenied, []byte("enrollment disabled"))
+			return
+		default:
+			dev, tok, err := s.Devices.Enroll(hello.Label, hello.Platform, ip)
+			if err != nil {
+				WriteFrame(conn, PktDenied, []byte(err.Error()))
+				log.Printf("[dt] enrollment failed ip=%s: %v", ip, err)
+				return
+			}
+			issued, deviceID, authKind = tok, dev.ID, "device"
+		}
 	}
 	if authKind == "" {
 		WriteFrame(conn, PktDenied, []byte("auth failed"))
@@ -489,6 +547,7 @@ func (s *TunnelServer) ServeControlConn(conn net.Conn) {
 		mode:     hello.Mode,
 		port:     hello.LocalPort,
 		ip:       ip,
+		device:   deviceID,
 		conn:     conn,
 		streams:  map[uint32]*PublicStream{},
 		lastSeen: time.Now(),
@@ -501,7 +560,10 @@ func (s *TunnelServer) ServeControlConn(conn net.Conn) {
 		return
 	}
 
-	wel := WelcomeMsg{Version: 1, Host: host, Mode: cc.mode, Reconnect: resumed, Filter: s.Filter.Enabled}
+	wel := WelcomeMsg{
+		Version: 1, Host: host, Mode: cc.mode, Reconnect: resumed,
+		Filter: s.Filter.Enabled, Issued: issued, DeviceID: deviceID,
+	}
 	wb, _ := json.Marshal(wel)
 	if err := WriteFrame(conn, PktWelcome, wb); err != nil {
 		s.Unregister(cc)
@@ -511,8 +573,36 @@ func (s *TunnelServer) ServeControlConn(conn net.Conn) {
 
 	s.recordSession(cc, resumed)
 
-	log.Printf("[dt] client %s ip=%s host=%s mode=%s resumed=%v auth=%s", platformTag(), ip, host, cc.mode, resumed, authKind)
+	if deviceID != "" {
+		log.Printf("[dt] client %s ip=%s host=%s mode=%s resumed=%v auth=%s device=%s", platformTag(), ip, host, cc.mode, resumed, authKind, deviceID)
+	} else {
+		log.Printf("[dt] client %s ip=%s host=%s mode=%s resumed=%v auth=%s", platformTag(), ip, host, cc.mode, resumed, authKind)
+	}
 	cc.HandleControl()
+}
+
+// authDecision is what a presented token turned out to be.
+type authDecision struct {
+	kind     string // "master", "device", "enroll", or "" when nothing matched
+	deviceID string
+}
+
+// classifyAuth decides what a presented token may do. Unlike the master
+// secret, a device token is looked up in the store, so a revoked device is
+// refused here.
+func (s *TunnelServer) classifyAuth(token, ip string) authDecision {
+	if serveAuth(token, s.Secret) {
+		return authDecision{kind: "master"}
+	}
+	if s.Devices != nil {
+		if d, ok := s.Devices.Authenticate(token, ip); ok {
+			return authDecision{kind: "device", deviceID: d.ID}
+		}
+	}
+	if s.EnrollToken != "" && serveAuth(token, s.EnrollToken) {
+		return authDecision{kind: "enroll"}
+	}
+	return authDecision{}
 }
 
 // ServeControlTLSConn wraps a raw conn in TLS (wildcard cert) and runs the

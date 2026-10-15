@@ -49,13 +49,14 @@ class Tunnel:
             ``https://my-api.maiuni.online``). Random when omitted.
         mode: ``"http"`` (default) or ``"tcp"``.
         server: control endpoint, ``host:port``. Defaults to the public relay.
-        token: access token. When omitted the binary's built-in public token is
-            used, so a fresh install works with no configuration.
+        token: access token. When omitted the built-in enrollment token is used
+            and the device registers itself on the first run, so a fresh
+            install works with no configuration.
         dt_binary: explicit path to ``dt``.
         auto_install: download ``dt`` when it cannot be found.
         ready_timeout: seconds to wait for the relay to report the tunnel online.
-        on_event: called for every event (``ready``, ``reconnected``,
-            ``disconnected``, ``error``, ...).
+        on_event: called for every event (``enrolled``, ``ready``,
+            ``reconnected``, ``disconnected``, ``error``, ...).
         session: give this tunnel its own dt config file (default ``True``) so
             several tunnels can run from one machine without stealing each
             other's session; ``False`` shares ``~/.dreamtunnel/config.env``.
@@ -106,6 +107,7 @@ class Tunnel:
         self._url: str | None = None
         self._host: str | None = None
         self._local_url: str | None = None
+        self._device_id: str | None = None
         self._last_error: str | None = None
         self._exit_code: int | None = None
         self._threads: list[threading.Thread] = []
@@ -130,6 +132,16 @@ class Tunnel:
     def local_url(self) -> str | None:
         """The local endpoint being exposed."""
         return self._local_url
+
+    @property
+    def device_id(self) -> str | None:
+        """Id the relay assigned to this device (``enrolled``/``ready`` event).
+
+        Every device is registered on its first run and gets a token of its
+        own; the id makes it recognisable in the server's admin panel. Older
+        ``dt`` builds never report it and this stays ``None``.
+        """
+        return self._device_id
 
     @property
     def pid(self) -> int | None:
@@ -205,9 +217,14 @@ class Tunnel:
                 self._url = event.get("url") or self._url
                 self._host = event.get("host") or self._host
                 self._local_url = event.get("local") or self._local_url
+                self._device_id = event.get("device") or self._device_id
                 if event.get("reconnect"):
                     event = {**event, "event": "reconnected"}
             self._ready.set()
+        elif kind == "enrolled":
+            # the relay issued this device a token of its own on this run
+            with self._lock:
+                self._device_id = event.get("device") or self._device_id
         elif kind in {"error", "disconnected"}:
             with self._lock:
                 self._last_error = str(event.get("error", "")) or self._last_error
@@ -293,6 +310,7 @@ class Tunnel:
             self._url = None
             self._host = None
             self._local_url = None
+            self._device_id = None
             self._last_error = None
             self._exit_code = None
             self._events.clear()

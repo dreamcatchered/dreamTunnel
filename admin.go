@@ -163,6 +163,21 @@ func (s *TunnelServer) KillSession(cc *ClientConn) {
 	log.Printf("[dt] admin killed session %s host=%s ip=%s", cc.sess, cc.host, cc.ip)
 }
 
+// KillDevice closes every tunnel that authenticated as the given device.
+func (s *TunnelServer) KillDevice(id string) int {
+	n := 0
+	for _, cc := range s.listClients() {
+		if cc.device == id {
+			s.KillSession(cc)
+			n++
+		}
+	}
+	if n > 0 {
+		log.Printf("[dt] admin revoked device %s, closed %d session(s)", id, n)
+	}
+	return n
+}
+
 // ---- admin HTTP panel ----
 
 type adminServer struct {
@@ -278,6 +293,8 @@ func (a *adminServer) Handler() http.Handler {
 	mux.HandleFunc("/api/kill", a.apiKill)
 	mux.HandleFunc("/api/ban", a.apiBan)
 	mux.HandleFunc("/api/unban", a.apiUnban)
+	mux.HandleFunc("/api/device/revoke", a.apiDeviceRevoke)
+	mux.HandleFunc("/api/device/restore", a.apiDeviceRestore)
 	return mux
 }
 
@@ -342,6 +359,7 @@ func (a *adminServer) apiState(w http.ResponseWriter, r *http.Request) {
 		StreamsNow           int
 	}
 	cls := make([]cl, 0, len(clients))
+	online := map[string]bool{}
 	for _, cc := range clients {
 		cc.smu.Lock()
 		now := len(cc.streams)
@@ -349,11 +367,33 @@ func (a *adminServer) apiState(w http.ResponseWriter, r *http.Request) {
 		cc.statsMu.Lock()
 		si, so, sn := cc.bytesIn, cc.bytesOut, cc.streamsN
 		cc.statsMu.Unlock()
+		if cc.device != "" {
+			online[cc.device] = true
+		}
 		cls = append(cls, cl{
 			Sess: cc.sess, Host: cc.host, Mode: cc.mode, IP: cc.ip, Port: cc.port,
 			Started: cc.started, LastSeen: cc.lastSeen, Streams: sn,
 			BytesIn: si, BytesOut: so, StreamsNow: now,
 		})
+	}
+	type dev struct {
+		ID       string    `json:"id"`
+		Label    string    `json:"label"`
+		Platform string    `json:"platform"`
+		IP       string    `json:"ip"`
+		First    time.Time `json:"first"`
+		Last     time.Time `json:"last"`
+		Revoked  bool      `json:"revoked"`
+		Online   bool      `json:"online"`
+	}
+	devs := []dev{}
+	if a.srv.Devices != nil {
+		for _, d := range a.srv.Devices.List() {
+			devs = append(devs, dev{
+				ID: d.ID, Label: d.Label, Platform: d.Platform, IP: d.IP,
+				First: d.First, Last: d.Last, Revoked: d.Revoked, Online: online[d.ID],
+			})
+		}
 	}
 	a.srv.adminMu.Lock()
 	hist := make([]HistoryEntry, len(a.srv.history))
@@ -370,7 +410,54 @@ func (a *adminServer) apiState(w http.ResponseWriter, r *http.Request) {
 	}
 	writeJSON(w, map[string]interface{}{
 		"clients": cls, "history": hist, "stats": stats, "bans": bans,
+		"devices": devs, "devicesEnabled": a.srv.Devices != nil,
 		"filter": a.srv.Filter.Enabled, "domain": TunnelDomain,
+	})
+}
+
+// apiDeviceRevoke / apiDeviceRestore switch a per-device token on and off.
+// Revoking also drops whatever the device is currently tunnelling.
+func (a *adminServer) apiDeviceRevoke(w http.ResponseWriter, r *http.Request) {
+	a.setDeviceRevoked(w, r, true)
+}
+
+func (a *adminServer) apiDeviceRestore(w http.ResponseWriter, r *http.Request) {
+	a.setDeviceRevoked(w, r, false)
+}
+
+func (a *adminServer) setDeviceRevoked(w http.ResponseWriter, r *http.Request, revoked bool) {
+	if !a.authed(r) {
+		writeJSON(w, map[string]string{"error": "unauthorized"})
+		return
+	}
+	if a.srv.Devices == nil {
+		writeJSON(w, map[string]string{"error": "Учёт устройств выключен"})
+		return
+	}
+	var req struct {
+		ID    string `json:"id"`
+		BanIP bool   `json:"banIP"`
+	}
+	json.NewDecoder(r.Body).Decode(&req)
+	id := strings.TrimSpace(strings.TrimPrefix(req.ID, deviceTokenPrefix))
+	if id == "" {
+		writeJSON(w, map[string]string{"error": "id required"})
+		return
+	}
+	d, ok := a.srv.Devices.SetRevoked(id, revoked)
+	if !ok {
+		writeJSON(w, map[string]string{"error": "Устройство не найдено"})
+		return
+	}
+	killed := 0
+	if revoked {
+		killed = a.srv.KillDevice(id)
+		if req.BanIP && d.IP != "" {
+			a.srv.BanIP(d.IP)
+		}
+	}
+	writeJSON(w, map[string]interface{}{
+		"ok": "1", "id": d.ID, "revoked": d.Revoked, "killed": killed,
 	})
 }
 

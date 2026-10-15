@@ -4,6 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>dreamTunnel — мгновенные публичные туннели</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' fill='%23000'/%3E%3Cpath d='M10 22 22 10M14 10h8v8' stroke='%23fff' stroke-width='2.6' fill='none'/%3E%3C/svg%3E">
 <meta name="description" content="Одна команда — и ваш локальный сервер доступен из интернета по HTTPS с собственным поддоменом. Без предупреждений, без падений, с автовосстановлением.">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Manrope:wght@400&display=swap">
 <style>
@@ -133,7 +134,7 @@ footer{border-top:var(--line);}
   <h1>Ваш локальный сервер — в интернете за одну команду</h1>
   <p class="hero-copy">
     dreamTunnel пробрасывает порт вашего компьютера в публичный интернет через исходящее соединение.
-    <span class="dim">Токен уже встроен в клиент — установка и запуск без настройки. NAT, файрвол и CG-NAT не помеха. Каждому туннелю — свой HTTPS-поддомен, сертификат включён, переподключение при обрыве интернета — автоматическое.</span>
+    <span class="dim">Настройка не нужна: при первом запуске устройство само получает свой токен и запоминает его. NAT, файрвол и CG-NAT не помеха. Каждому туннелю — свой HTTPS-поддомен, сертификат включён, переподключение при обрыве интернета — автоматическое.</span>
   </p>
 </section>
 
@@ -169,7 +170,7 @@ footer{border-top:var(--line);}
         <button class="copy-btn" data-copy-src="dt http 8080" aria-label="Скопировать команду" title="Скопировать"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="9" y="9" width="13" height="13" rx="0"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg></button>
       </div>
       <p class="qs-note">Одна команда — и любой HTTP-сервер на порту 8080 доступен по адресу <strong>https://my-site.maiuni.online</strong>. Валидный сертификат уже включён: никаких предупреждений браузера. В терминале видно каждый запрос: метод, путь, код ответа и время.</p>
-      <p class="qs-note dim">Настраивать ничего не нужно: токен доступа уже встроен в бинарник, поэтому <code>dt login</code> и переменные окружения нужны только для своего сервера. Прямые ссылки на сборки (Linux, macOS, Windows · x86_64/arm64) — <a href="https://tunnel.swag.best/dl/">tunnel.swag.best/dl/</a>, контрольные суммы в <code>/dl/SHA256SUMS</code> (установщик проверяет их сам).</p>
+      <p class="qs-note dim">Настраивать ничего не нужно: при первом запуске клиент регистрирует это устройство на сервере, получает личный токен и сохраняет его в <code>~/.dreamtunnel/config.env</code> — <code>dt login</code> и переменные окружения нужны только для своего сервера. Прямые ссылки на сборки (Linux, macOS, Windows · x86_64/arm64) — <a href="https://tunnel.swag.best/dl/">tunnel.swag.best/dl/</a>, контрольные суммы в <code>/dl/SHA256SUMS</code> (установщик проверяет их сам).</p>
     </div>
   </div>
 </section>
@@ -207,6 +208,21 @@ footer{border-top:var(--line);}
       <h3>Кроссплатформенно</h3>
       <p>Один бинарник на Go: Windows, Linux, macOS — amd64 и arm64. Ставится скриптом, ничего не требует.</p>
     </div>
+    <div class="f-cell">
+      <div class="num">07</div>
+      <h3>Свой токен на устройство</h3>
+      <p>При первом запуске устройство регистрируется на сервере и получает личный токен, который хранит у себя. Никаких общих ключей, которые невозможно отозвать.</p>
+    </div>
+    <div class="f-cell">
+      <div class="num">08</div>
+      <h3>Видно каждое устройство</h3>
+      <p>В панели управления — имя, платформа, IP, первый и последний визит, статус. Отзыв закрывает туннели устройства сразу, кнопка «бан IP» не пускает его обратно.</p>
+    </div>
+    <div class="f-cell">
+      <div class="num">09</div>
+      <h3>Python SDK на PyPI</h3>
+      <p>Туннель из кода: <code>pip install dreamtunnel</code>. SDK сам скачивает <code>dt</code>, дожидается готовности релея и отдаёт публичный адрес как атрибут.</p>
+    </div>
   </div>
 </section>
 
@@ -233,9 +249,11 @@ footer{border-top:var(--line);}
         <tr><td><span class="cmd"><code>dt http 8080 my-api</code><button class="copy-btn" data-copy-src="dt http 8080 my-api" aria-label="Скопировать" title="Скопировать"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="9" y="9" width="13" height="13" rx="0"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg></button></span></td><td>То же, но с постоянным именем: <code>https://my-api.maiuni.online</code></td></tr>
         <tr><td><span class="cmd"><code>dt http 8080 --server host:port</code><button class="copy-btn" data-copy-src="dt http 8080 --server host:port" aria-label="Скопировать" title="Скопировать"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="9" y="9" width="13" height="13" rx="0"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg></button></span></td><td>Указать другой сервер dreamTunnel.</td></tr>
         <tr><td><span class="cmd"><code>dt tcp 25565</code><button class="copy-btn" data-copy-src="dt tcp 25565" aria-label="Скопировать" title="Скопировать"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="9" y="9" width="13" height="13" rx="0"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg></button></span></td><td>Сырой TCP-туннель (например, игровой сервер).</td></tr>
-        <tr><td><span class="cmd"><code>dt http 8080 --json</code><button class="copy-btn" data-copy-src="dt http 8080 --json" aria-label="Скопировать" title="Скопировать"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="9" y="9" width="13" height="13" rx="0"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg></button></span></td><td>Машинный вывод: события NDJSON на stdout (<code>ready</code>, <code>disconnected</code>, <code>error</code>…) — для скриптов и SDK.</td></tr>
+        <tr><td><span class="cmd"><code>dt http 8080 --json</code><button class="copy-btn" data-copy-src="dt http 8080 --json" aria-label="Скопировать" title="Скопировать"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="9" y="9" width="13" height="13" rx="0"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg></button></span></td><td>Машинный вывод: события NDJSON на stdout (<code>enrolled</code>, <code>ready</code>, <code>disconnected</code>, <code>error</code>…) — для скриптов и SDK.</td></tr>
         <tr><td><span class="cmd"><code>dt login</code><button class="copy-btn" data-copy-src="dt login" aria-label="Скопировать" title="Скопировать"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="9" y="9" width="13" height="13" rx="0"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg></button></span></td><td>Необязательно: сохранить свой сервер и токен в <code>~/.dreamtunnel/config.env</code>.</td></tr>
-        <tr><td><span class="cmd"><code>dt config</code><button class="copy-btn" data-copy-src="dt config" aria-label="Скопировать" title="Скопировать"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="9" y="9" width="13" height="13" rx="0"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg></button></span></td><td>Показать текущую конфигурацию.</td></tr>
+        <tr><td><span class="cmd"><code>dt config</code><button class="copy-btn" data-copy-src="dt config" aria-label="Скопировать" title="Скопировать"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="9" y="9" width="13" height="13" rx="0"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg></button></span></td><td>Показать конфигурацию: сервер, id этого устройства, поддомен, сессию, путь к файлу.</td></tr>
+        <tr><td><span class="cmd"><code>dt enroll</code><button class="copy-btn" data-copy-src="dt enroll" aria-label="Скопировать" title="Скопировать"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="9" y="9" width="13" height="13" rx="0"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg></button></span></td><td>Получить для этого устройства новый токен — после переноса, переустановки или если токен отозвали.</td></tr>
+        <tr><td><span class="cmd"><code>dt devices list</code><button class="copy-btn" data-copy-src="dt devices list" aria-label="Скопировать" title="Скопировать"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="9" y="9" width="13" height="13" rx="0"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg></button></span></td><td>На сервере: список устройств со статусом. Ещё <code>dt devices revoke &lt;id&gt; [--ban-ip]</code> и <code>dt devices restore &lt;id&gt;</code>.</td></tr>
       </table>
     </div>
   </div>
@@ -251,9 +269,18 @@ footer{border-top:var(--line);}
   <div class="doc-sec">
     <h3>Токен доступа</h3>
     <div class="body">
-      <p>Из коробки настраивать ничего не нужно: публичный токен сервера уже вкомпилирован в бинарник <code>dt</code>, поэтому <code>dt http 8080</code> работает сразу после установки. Отдельный токен нужен, только если вы поднимаете свой релей или владелец закрыл публичный доступ.</p>
-      <p>Порядок поиска токена: файл <code>~/.dreamtunnel/config.env</code> → переменная <code>DT_TOKEN</code> → встроенный публичный токен. Адрес сервера задаётся так же: <code>--server host:port</code> или <code>DT_SERVER</code>.</p>
-      <p class="dim">Владелец сервера: публичный токен включается строкой <code>DT_PUBLIC_TOKEN</code> в <code>/etc/dreamtunnel/server.conf</code> (он попадает в релизные сборки), а <code>dt token &lt;секрет&gt;</code> печатает обфусцированную форму приватного токена. Мастер-секрет при этом остаётся только на сервере.</p>
+      <p>Из коробки настраивать ничего не нужно: в бинарник <code>dt</code> вкомпилирован токен регистрации, поэтому <code>dt http 8080</code> работает сразу после установки. Но это только пропуск на регистрацию: при первом запуске клиент просит сервер выдать токен для этого устройства, сохраняет его и дальше ходит только с ним.</p>
+      <p>Порядок поиска токена: файл <code>~/.dreamtunnel/config.env</code> → переменная <code>DT_TOKEN</code> → встроенный токен регистрации. Адрес сервера задаётся так же: <code>--server host:port</code> или <code>DT_SERVER</code>. Перерегистрировать устройство (новый токен) — <code>dt enroll</code>, посмотреть свой id — <code>dt config</code>.</p>
+      <p class="dim">Владелец сервера: токен регистрации задаётся строкой <code>DT_ENROLL_TOKEN</code> в <code>/etc/dreamtunnel/server.conf</code> (он и попадает в релизные сборки). <code>DT_REQUIRE_DEVICE_TOKENS=1</code> запрещает этому токену открывать туннели — только регистрация устройств. Выданные токены лежат в <code>/var/lib/dreamtunnel/devices.json</code> (путь меняется <code>DT_DEVICES_FILE</code>) в виде хешей, в открытом виде они не хранятся нигде. <code>dt token &lt;секрет&gt;</code> печатает обфусцированную форму приватного токена; мастер-секрет остаётся только на сервере.</p>
+    </div>
+  </div>
+
+  <div class="doc-sec">
+    <h3>Устройства</h3>
+    <div class="body">
+      <p>Каждое устройство получает свой токен при первом запуске — вместе с записью в панели управления: имя (hostname), платформа, IP, время первой и последней связи, статус — на связи, не в сети или отозвано. Пароли и токены в панели не показываются: сервер хранит только хеши.</p>
+      <p>Отзыв закрывает все туннели устройства немедленно и запрещает подключаться с его токеном. Кнопка «Отозвать + бан IP» дополнительно блокирует адрес — это единственный надёжный способ не пустить устройство обратно, потому что токен регистрации всё ещё вкомпилирован в бинарник и позволяет завести новое устройство с того же адреса.</p>
+      <p class="dim">То же из терминала на сервере: <code>dt devices list</code>, <code>dt devices revoke &lt;id&gt; [--ban-ip]</code>, <code>dt devices restore &lt;id&gt;</code>. Команды работают через API панели, поэтому состояние устройств всегда согласовано с запущенным сервером.</p>
     </div>
   </div>
 
@@ -262,12 +289,13 @@ footer{border-top:var(--line);}
     <div class="body">
       <p>Туннель можно поднять прямо из кода: SDK запускает и присматривает за процессом <code>dt</code>,
       дожидается подтверждения от релея, отдаёт публичный адрес и сообщает о переподключениях. Бинарник
-      <code>dt</code> SDK скачает сам при первом запуске, а токен уже встроен — настройка не нужна.</p>
-      <pre>pip install "git+https://github.com/dreamcatchered/dreamTunnel.git#subdirectory=sdk/python"</pre>
+      <code>dt</code> SDK скачает сам при первом запуске, а устройство зарегистрируется автоматически.</p>
+      <pre>pip install dreamtunnel</pre>
       <pre>from dreamtunnel import Tunnel
 
 with Tunnel(port=8080, subdomain="my-api") as tun:
-    print(tun.url)      # https://my-api.maiuni.online
+    print(tun.url)         # https://my-api.maiuni.online
+    print(tun.device_id)   # id этого устройства на сервере
     # ... работает ваше приложение, туннель живёт
 # выход из блока — туннель закрыт</pre>
       <p>События и управление вручную:</p>
@@ -276,7 +304,7 @@ tun.start()
 tun.connected   # True, пока туннель на связи
 tun.restart()   # перезапуск с тем же адресом
 tun.stop()      # корректно гасит процесс</pre>
-      <p class="dim">Исходники — в папке <code>sdk/python</code> <a
+      <p class="dim">Пакет опубликован на PyPI: <a href="https://pypi.org/project/dreamtunnel/">pypi.org/project/dreamtunnel</a>. Исходники — в папке <code>sdk/python</code> <a
       href="https://github.com/dreamcatchered/dreamTunnel">репозитория</a>. Готовые примеры: Flask, FastAPI
       и обычный <code>http.server</code>.</p>
     </div>
@@ -285,6 +313,7 @@ tun.stop()      # корректно гасит процесс</pre>
     <h3>Свой сервер</h3>
     <div class="body">
       <p>Релей — это тот же бинарник: <code>dt server</code>. Конфиг в <code>/etc/dreamtunnel/server.conf</code> (секрет, домен, порты, логин/пароль админки). systemd-юнит и wildcard-сертификат через acme.sh DNS-01 — всё как в описании проекта на GitHub.</p>
+      <p>Устройствами сервер управляет сам: выдаёт персональные токены при первом подключении, ведёт их список и умеет отзывать. Панель администратора показывает активные туннели, историю, трафик и блокировки — на <code>127.0.0.1:8484</code>, наружу её выставлять не нужно. Строка <code>DT_REQUIRE_DEVICE_TOKENS=1</code> закрывает туннели по общему токену регистрации, <code>DT_DEVICES_FILE</code> задаёт путь к списку устройств.</p>
       <p class="dim">Пул поддоменов реализован wildcard-записью DNS: *.maiuni.online → IP сервера. Никаких отдельных записей создавать не нужно — поддомены виртуальные, сервер раздаёт их динамически и следит, чтобы два клиента никогда не получили один и тот же.</p>
     </div>
   </div>

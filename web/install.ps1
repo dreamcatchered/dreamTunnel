@@ -2,8 +2,9 @@
 #
 #   irm https://tunnel.swag.best/install.ps1 | iex
 #
-# The access token is already compiled into the binary, so there is nothing to
-# configure afterwards: `dt http 8080` works immediately.
+# There is nothing to configure afterwards: the built-in token registers this
+# device with the relay on the first run and stores the token it gets back, so
+# `dt http 8080` works immediately.
 $ErrorActionPreference = "Stop"
 
 $Domain = "tunnel.swag.best"
@@ -67,11 +68,13 @@ if ($currentPath -notlike "*$InstallDir*") {
 Write-Host ""
 Write-Host "  [+] installed: $ExePath"
 Write-Host ""
-Write-Host "  ready to use, the access token is already built in:"
+Write-Host "  ready to use — this device gets its own token on the first run:"
 Write-Host "      dt http 8080              expose a local HTTP server"
 Write-Host "      dt http 8080 my-site      -> https://my-site.$TunnelDomain"
 Write-Host "      dt tcp 25565              raw TCP tunnel"
 Write-Host "      dt http 8080 --json       machine-readable events"
+Write-Host "      dt config                 server, device id and session"
+Write-Host "      dt enroll                 request a new token for this device"
 Write-Host ""
 Write-Host "  site: https://$Domain/"
 Write-Host ""

@@ -8,6 +8,7 @@ happy path, failures, reconnects and the session handling the SDK relies on:
     FAKE_DT_LIFETIME    seconds to stay alive after reporting ready
     FAKE_DT_IGNORE_JSON makes it behave like an older binary (no --json)
     FAKE_DT_ENVDUMP_DIR directory to dump the DT_* environment into
+    FAKE_DT_ENROLL      emit the enrolled event and a device id (new dt)
 """
 
 from __future__ import annotations
@@ -69,9 +70,24 @@ if behaviour == "slow":
     time.sleep(60)
     sys.exit(0)
 
+# The relay issues a per-device token on the first run; dt reports it as an
+# `enrolled` event and carries the device id in `ready` from then on.
+device = "f00dbabe" if os.environ.get("FAKE_DT_ENROLL") and json_mode else None
+if device:
+    emit({"event": "enrolled", "device": device, "label": "test-host",
+          "config": cfg_path or ""})
+
+
+def ready_event(reconnect: bool) -> dict:
+    ev = {"event": "ready", "url": f"https://{host}", "host": host,
+          "local": local, "mode": mode, "reconnect": reconnect}
+    if device:
+        ev["device"] = device
+    return ev
+
+
 if json_mode:
-    emit({"event": "ready", "url": f"https://{host}", "host": host,
-          "local": local, "mode": mode, "reconnect": False})
+    emit(ready_event(False))
 else:
     print(f"  Forwarding   https://{host} -> {local}", flush=True)
     print("  Press Ctrl+C to stop", flush=True)
@@ -80,8 +96,7 @@ if behaviour == "flap":
     time.sleep(0.3)
     if json_mode:
         emit({"event": "disconnected", "error": "connection lost", "retry_in": "1s"})
-        emit({"event": "ready", "url": f"https://{host}", "host": host,
-              "local": local, "mode": mode, "reconnect": True})
+        emit(ready_event(True))
 
 time.sleep(float(os.environ.get("FAKE_DT_LIFETIME", "30")))
 sys.exit(0)

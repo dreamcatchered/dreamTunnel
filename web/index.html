@@ -263,7 +263,7 @@ footer{border-top:var(--line);}
       <p>Туннель можно поднять прямо из кода: SDK запускает и присматривает за процессом <code>dt</code>,
       дожидается подтверждения от релея, отдаёт публичный адрес и сообщает о переподключениях. Бинарник
       <code>dt</code> SDK скачает сам при первом запуске, а токен уже встроен — настройка не нужна.</p>
-      <pre>pip install dreamtunnel</pre>
+      <pre>pip install "git+https://github.com/dreamcatchered/dreamTunnel.git#subdirectory=sdk/python"</pre>
       <pre>from dreamtunnel import Tunnel
 
 with Tunnel(port=8080, subdomain="my-api") as tun:

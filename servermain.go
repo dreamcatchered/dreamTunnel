@@ -13,6 +13,7 @@ import (
 // serverConfig loaded from /etc/dreamtunnel/server.conf (KEY=VALUE).
 type serverConfig struct {
 	Secret        string
+	PublicToken   string // DT_PUBLIC_TOKEN: shared token for zero-setup clients
 	ControlAddr   string
 	EdgeAddr      string
 	StaticTLS     string
@@ -39,6 +40,9 @@ func loadServerConfig(path string) (*serverConfig, error) {
 	env := dotEnv(path)
 	if v, ok := env["DT_SECRET"]; ok && v != "" {
 		cfg.Secret = v
+	}
+	if v, ok := env["DT_PUBLIC_TOKEN"]; ok && v != "" {
+		cfg.PublicToken = v
 	}
 	if v, ok := env["DT_CONTROL_ADDR"]; ok && v != "" {
 		cfg.ControlAddr = v
@@ -102,7 +106,7 @@ func runServer(args []string) error {
 	}
 
 	filter := NewContentFilter(cfg.FilterEnabled)
-	srv := NewTunnelServer(cfg.Secret, filter, cfg.IdleTimeout)
+	srv := NewTunnelServer(cfg.Secret, cfg.PublicToken, filter, cfg.IdleTimeout)
 
 	cl, err := net.Listen("tcp", cfg.ControlAddr)
 	if err != nil {
@@ -117,7 +121,7 @@ func runServer(args []string) error {
 			go srv.ServeControlTLSConn(conn)
 		}
 	}()
-	log.Printf("[dt] control listening on %s (domain %s, filter=%v)", cfg.ControlAddr, cfg.Domain, cfg.FilterEnabled)
+	log.Printf("[dt] control listening on %s (domain %s, filter=%v, public_token=%v)", cfg.ControlAddr, cfg.Domain, cfg.FilterEnabled, cfg.PublicToken != "")
 
 	edge := &EdgeRouter{srv: srv, staticTLS: cfg.StaticTLS}
 	el, err := net.Listen("tcp", cfg.EdgeAddr)

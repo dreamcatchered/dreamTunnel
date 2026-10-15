@@ -40,6 +40,7 @@ type TunnelServer struct {
 	counter uint32
 
 	Secret      string
+	PublicToken string // optional shared token that works without login
 	Filter      *ContentFilter
 	IdleTimeout time.Duration
 
@@ -118,11 +119,12 @@ type PublicStream struct {
 	conn   net.Conn
 }
 
-func NewTunnelServer(secret string, filter *ContentFilter, idle time.Duration) *TunnelServer {
+func NewTunnelServer(secret, publicToken string, filter *ContentFilter, idle time.Duration) *TunnelServer {
 	return &TunnelServer{
 		byHost:      map[string]*ClientConn{},
 		bySess:      map[string]*ClientConn{},
 		Secret:      secret,
+		PublicToken: publicToken,
 		Filter:      filter,
 		IdleTimeout: idle,
 		history:     []HistoryEntry{},
@@ -461,7 +463,14 @@ func (s *TunnelServer) ServeControlConn(conn net.Conn) {
 			token = de
 		}
 	}
-	if !serveAuth(token, s.Secret) {
+	authKind := ""
+	switch {
+	case serveAuth(token, s.Secret):
+		authKind = "master"
+	case s.PublicToken != "" && serveAuth(token, s.PublicToken):
+		authKind = "public"
+	}
+	if authKind == "" {
 		WriteFrame(conn, PktDenied, []byte("auth failed"))
 		s.authFail(ip)
 		log.Printf("[dt] auth failed ip=%s sess=%s", ip, hello.Sess)
@@ -502,7 +511,7 @@ func (s *TunnelServer) ServeControlConn(conn net.Conn) {
 
 	s.recordSession(cc, resumed)
 
-	log.Printf("[dt] client %s ip=%s host=%s mode=%s resumed=%v", platformTag(), ip, host, cc.mode, resumed)
+	log.Printf("[dt] client %s ip=%s host=%s mode=%s resumed=%v auth=%s", platformTag(), ip, host, cc.mode, resumed, authKind)
 	cc.HandleControl()
 }
 

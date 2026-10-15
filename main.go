@@ -36,6 +36,17 @@ Usage:
   dt token <value>                    print the obfuscated token form
   dt config                           show current config
   dt server [--config /etc/dreamtunnel/server.conf]   run the relay server
+
+Options for "dt http" / "dt tcp":
+  --sub <name>     requested subdomain label
+  --server a:b     control endpoint (default tunnel.swag.best:444)
+  --json           emit NDJSON events on stdout (ready/disconnected/...)
+
+Environment:
+  DT_TOKEN         access token (built-in public token is used when unset)
+  DT_SERVER        control endpoint
+  DT_SUB           requested subdomain label
+  DT_CONFIG        config file path (default ~/.dreamtunnel/config.env)
 `)
 }
 
@@ -116,10 +127,13 @@ func runConfigShow() error {
 	fmt.Println("server:", cfg.Server)
 	if cfg.Token != "" {
 		fmt.Println("token: <set, len", len(cfg.Token), ">")
+	} else if DefaultPublicToken != "" {
+		fmt.Println("token: <built-in public token>")
 	} else {
 		fmt.Println("token: <not set>")
 	}
 	fmt.Println("sub:", cfg.Sub)
 	fmt.Println("session:", cfg.Sess)
+	fmt.Println("config:", clientConfigPath())
 	return nil
 }

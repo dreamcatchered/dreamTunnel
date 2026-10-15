@@ -3,6 +3,7 @@ package main
 import (
 	"bytes"
 	"crypto/tls"
+	"encoding/binary"
 	"fmt"
 	"io"
 	"net"
@@ -119,6 +120,85 @@ func sniffedConn(c net.Conn, tee *teeConn) net.Conn {
 	return &prefixConn{Conn: c, prefix: tee.buf.Bytes()}
 }
 
+// proxyV2Sig is the 12-byte PROXY protocol v2 signature.
+var proxyV2Sig = []byte{0x0D, 0x0A, 0x0D, 0x0A, 0x00, 0x0D, 0x0A, 0x51, 0x55, 0x49, 0x54, 0x0A}
+
+// couldBeProxy reports whether b can still grow into a PROXY protocol header.
+func couldBeProxy(b []byte) bool {
+	if len(b) <= len(proxyV2Sig) {
+		return bytes.HasPrefix(proxyV2Sig, b) || bytes.HasPrefix([]byte("PROXY "), b)
+	}
+	return bytes.HasPrefix(b, []byte("PROXY ")) || bytes.HasPrefix(b, proxyV2Sig)
+}
+
+// stripProxy consumes an optional PROXY protocol header in front of the TLS
+// stream (nginx stream `proxy_protocol on`) and returns a conn that replays
+// everything after it, plus the advertised source address when present.
+// Traffic without a header is passed through untouched, so the edge keeps
+// working both behind nginx and when dialled directly.
+func stripProxy(c net.Conn) (net.Conn, string, error) {
+	buf := make([]byte, 0, 512)
+	tmp := make([]byte, 512)
+
+	readMore := func() error {
+		c.SetReadDeadline(time.Now().Add(10 * time.Second))
+		n, err := c.Read(tmp)
+		if n > 0 {
+			buf = append(buf, tmp[:n]...)
+		}
+		return err
+	}
+	fill := func(need int) error {
+		for len(buf) < need {
+			if err := readMore(); err != nil {
+				return err
+			}
+		}
+		return nil
+	}
+
+	// gather just enough bytes to tell a PROXY header from raw TLS
+	for len(buf) < len(proxyV2Sig) && couldBeProxy(buf) {
+		if err := readMore(); err != nil {
+			return nil, "", err
+		}
+	}
+	c.SetReadDeadline(time.Time{})
+
+	switch {
+	case bytes.HasPrefix(buf, []byte("PROXY ")):
+		for {
+			if i := bytes.Index(buf, []byte("\r\n")); i >= 0 {
+				src := ""
+				if f := strings.Fields(string(buf[:i])); len(f) >= 3 && (f[1] == "TCP4" || f[1] == "TCP6") {
+					src = f[2]
+				}
+				return &prefixConn{Conn: c, prefix: append([]byte(nil), buf[i+2:]...)}, src, nil
+			}
+			if len(buf) >= 107 { // v1 header is at most 107 bytes incl. CRLF
+				return nil, "", fmt.Errorf("proxy header too long")
+			}
+			if err := fill(len(buf) + 1); err != nil {
+				return nil, "", err
+			}
+		}
+	case bytes.HasPrefix(buf, proxyV2Sig):
+		if err := fill(16); err != nil {
+			return nil, "", err
+		}
+		n := int(binary.BigEndian.Uint16(buf[14:16]))
+		if err := fill(16 + n); err != nil {
+			return nil, "", err
+		}
+		src := ""
+		if n >= 12 && buf[13] == 0x11 { // AF_INET + STREAM
+			src = net.IP(buf[16:20]).String()
+		}
+		return &prefixConn{Conn: c, prefix: append([]byte(nil), buf[16+n:]...)}, src, nil
+	}
+	return &prefixConn{Conn: c, prefix: buf}, "", nil
+}
+
 // EdgeListener routes connections arriving from nginx (stream module) on
 // :8443: SNI sniff -> tunnel host ? proxy : static upstream.
 type EdgeRouter struct {
@@ -140,7 +220,12 @@ func (r *EdgeRouter) Serve(l net.Listener) {
 // transferred to the tunnel stream (or the static proxy); neither path
 // may close it here.
 func (r *EdgeRouter) Route(conn net.Conn) {
-	tee := &teeConn{Conn: conn}
+	c0, _, err := stripProxy(conn)
+	if err != nil {
+		conn.Close()
+		return
+	}
+	tee := &teeConn{Conn: c0}
 	sni, err := readSNI(tee)
 	sni = strings.ToLower(strings.TrimSpace(sni))
 	if err != nil || sni == "" {

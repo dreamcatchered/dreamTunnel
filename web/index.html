@@ -133,7 +133,7 @@ footer{border-top:var(--line);}
   <h1>Ваш локальный сервер — в интернете за одну команду</h1>
   <p class="hero-copy">
     dreamTunnel пробрасывает порт вашего компьютера в публичный интернет через исходящее соединение.
-    <span class="dim">NAT, файрвол и CG-NAT не помеха. Каждому туннелю — свой HTTPS-поддомен, сертификат включён, переподключение при обрыве интернета — автоматическое.</span>
+    <span class="dim">Токен уже встроен в клиент — установка и запуск без настройки. NAT, файрвол и CG-NAT не помеха. Каждому туннелю — свой HTTPS-поддомен, сертификат включён, переподключение при обрыве интернета — автоматическое.</span>
   </p>
 </section>
 
@@ -168,7 +168,8 @@ footer{border-top:var(--line);}
   <span class="c">GET /api</span>        200 OK         3.1ms</pre>
         <button class="copy-btn" data-copy-src="dt http 8080" aria-label="Скопировать команду" title="Скопировать"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="9" y="9" width="13" height="13" rx="0"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg></button>
       </div>
-      <p class="qs-note">Одна команда — и любой HTTP-сервер на порту 8080 доступен по адресу <strong>https://my-site.maiuni.online</strong>. Валидный сертификат уже включён: никаких предупреждений браузера. В термиале видно каждый запрос: метод, путь, код ответа и время.</p>
+      <p class="qs-note">Одна команда — и любой HTTP-сервер на порту 8080 доступен по адресу <strong>https://my-site.maiuni.online</strong>. Валидный сертификат уже включён: никаких предупреждений браузера. В терминале видно каждый запрос: метод, путь, код ответа и время.</p>
+      <p class="qs-note dim">Настраивать ничего не нужно: токен доступа уже встроен в бинарник, поэтому <code>dt login</code> и переменные окружения нужны только для своего сервера. Прямые ссылки на сборки (Linux, macOS, Windows · x86_64/arm64) — <a href="https://tunnel.swag.best/dl/">tunnel.swag.best/dl/</a>, контрольные суммы в <code>/dl/SHA256SUMS</code> (установщик проверяет их сам).</p>
     </div>
   </div>
 </section>
@@ -232,7 +233,8 @@ footer{border-top:var(--line);}
         <tr><td><span class="cmd"><code>dt http 8080 my-api</code><button class="copy-btn" data-copy-src="dt http 8080 my-api" aria-label="Скопировать" title="Скопировать"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="9" y="9" width="13" height="13" rx="0"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg></button></span></td><td>То же, но с постоянным именем: <code>https://my-api.maiuni.online</code></td></tr>
         <tr><td><span class="cmd"><code>dt http 8080 --server host:port</code><button class="copy-btn" data-copy-src="dt http 8080 --server host:port" aria-label="Скопировать" title="Скопировать"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="9" y="9" width="13" height="13" rx="0"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg></button></span></td><td>Указать другой сервер dreamTunnel.</td></tr>
         <tr><td><span class="cmd"><code>dt tcp 25565</code><button class="copy-btn" data-copy-src="dt tcp 25565" aria-label="Скопировать" title="Скопировать"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="9" y="9" width="13" height="13" rx="0"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg></button></span></td><td>Сырой TCP-туннель (например, игровой сервер).</td></tr>
-        <tr><td><span class="cmd"><code>dt login</code><button class="copy-btn" data-copy-src="dt login" aria-label="Скопировать" title="Скопировать"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="9" y="9" width="13" height="13" rx="0"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg></button></span></td><td>Сохранить сервер и токен в <code>~/.dreamtunnel/config.env</code>.</td></tr>
+        <tr><td><span class="cmd"><code>dt http 8080 --json</code><button class="copy-btn" data-copy-src="dt http 8080 --json" aria-label="Скопировать" title="Скопировать"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="9" y="9" width="13" height="13" rx="0"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg></button></span></td><td>Машинный вывод: события NDJSON на stdout (<code>ready</code>, <code>disconnected</code>, <code>error</code>…) — для скриптов и SDK.</td></tr>
+        <tr><td><span class="cmd"><code>dt login</code><button class="copy-btn" data-copy-src="dt login" aria-label="Скопировать" title="Скопировать"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="9" y="9" width="13" height="13" rx="0"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg></button></span></td><td>Необязательно: сохранить свой сервер и токен в <code>~/.dreamtunnel/config.env</code>.</td></tr>
         <tr><td><span class="cmd"><code>dt config</code><button class="copy-btn" data-copy-src="dt config" aria-label="Скопировать" title="Скопировать"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="9" y="9" width="13" height="13" rx="0"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg></button></span></td><td>Показать текущую конфигурацию.</td></tr>
       </table>
     </div>
@@ -242,18 +244,43 @@ footer{border-top:var(--line);}
     <h3>Переподключение</h3>
     <div class="body">
       <p>Клиент держит контрольный канал с сервером и обменивается heartbeat-сообщениями. Если связь пропала — Wi-Fi мигнул, ноутбук уснул, провайдер перебрал кабель — клиент сам начинает переподключение: 1с, 2с, 4с… до 60с максимум, со случайным джиттером, чтобы толпа клиентов не валилась на сервер одновременно.</p>
-      <p class="dim">Сессия хранится локально. После восстановления клиент получает тот же поддомен — ссылки не ломаются. Активные TCP-соединения внутри туннеля при обрыве пересоздаются (это свойство TCP), но сам туннель и URL остаются прежними.</p>
+      <p class="dim">Сессия хранится локально (файл <code>~/.dreamtunnel/config.env</code> или свой <code>DT_CONFIG</code> на каждый процесс, поэтому несколько туннелей на одной машине не мешают друг другу). После восстановления клиент получает тот же поддомен — ссылки не ломаются. Активные TCP-соединения внутри туннеля при обрыве пересоздаются (это свойство TCP), но сам туннель и URL остаются прежними.</p>
     </div>
   </div>
 
   <div class="doc-sec">
     <h3>Токен доступа</h3>
     <div class="body">
-      <p>Для доступа к серверу нужен токен. Он задаётся переменной окружения <code>DT_TOKEN</code>, файлом <code>~/.dreamtunnel/config.env</code> или командой <code>dt login</code>. В разделяемых конфигурациях токен хранится в обфусцированном виде — мастер-ключ сервера остаётся только на сервере.</p>
-      <p class="dim">Владелец сервера: сгенерировать клиентский токен — <code>dt token &lt;секрет&gt;</code> на сервере (выведет обфусцированную форму для раздачи).</p>
+      <p>Из коробки настраивать ничего не нужно: публичный токен сервера уже вкомпилирован в бинарник <code>dt</code>, поэтому <code>dt http 8080</code> работает сразу после установки. Отдельный токен нужен, только если вы поднимаете свой релей или владелец закрыл публичный доступ.</p>
+      <p>Порядок поиска токена: файл <code>~/.dreamtunnel/config.env</code> → переменная <code>DT_TOKEN</code> → встроенный публичный токен. Адрес сервера задаётся так же: <code>--server host:port</code> или <code>DT_SERVER</code>.</p>
+      <p class="dim">Владелец сервера: публичный токен включается строкой <code>DT_PUBLIC_TOKEN</code> в <code>/etc/dreamtunnel/server.conf</code> (он попадает в релизные сборки), а <code>dt token &lt;секрет&gt;</code> печатает обфусцированную форму приватного токена. Мастер-секрет при этом остаётся только на сервере.</p>
     </div>
   </div>
 
+  <div class="doc-sec">
+    <h3>Python SDK</h3>
+    <div class="body">
+      <p>Туннель можно поднять прямо из кода: SDK запускает и присматривает за процессом <code>dt</code>,
+      дожидается подтверждения от релея, отдаёт публичный адрес и сообщает о переподключениях. Бинарник
+      <code>dt</code> SDK скачает сам при первом запуске, а токен уже встроен — настройка не нужна.</p>
+      <pre>pip install dreamtunnel</pre>
+      <pre>from dreamtunnel import Tunnel
+
+with Tunnel(port=8080, subdomain="my-api") as tun:
+    print(tun.url)      # https://my-api.maiuni.online
+    # ... работает ваше приложение, туннель живёт
+# выход из блока — туннель закрыт</pre>
+      <p>События и управление вручную:</p>
+      <pre>tun = Tunnel(port=8080, on_event=lambda e: print(e["event"]))
+tun.start()
+tun.connected   # True, пока туннель на связи
+tun.restart()   # перезапуск с тем же адресом
+tun.stop()      # корректно гасит процесс</pre>
+      <p class="dim">Исходники — в папке <code>sdk/python</code> <a
+      href="https://github.com/dreamcatchered/dreamTunnel">репозитория</a>. Готовые примеры: Flask, FastAPI
+      и обычный <code>http.server</code>.</p>
+    </div>
+  </div>
   <div class="doc-sec">
     <h3>Свой сервер</h3>
     <div class="body">

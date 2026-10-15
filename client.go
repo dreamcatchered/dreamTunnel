@@ -14,7 +14,7 @@ import (
 	"time"
 )
 
-// clientConfig stored at ~/.dreamtunnel/config.env.
+// clientConfig is stored at ~/.dreamtunnel/config.env (override with DT_CONFIG).
 type clientConfig struct {
 	Server string
 	Token  string
@@ -23,6 +23,11 @@ type clientConfig struct {
 }
 
 func clientConfigPath() string {
+	// DT_CONFIG lets a caller keep its own config (and therefore its own
+	// session id), so several tunnels can run side by side.
+	if p := os.Getenv("DT_CONFIG"); p != "" {
+		return p
+	}
 	return joinHome(".dreamtunnel", "config.env")
 }
 
@@ -83,6 +88,8 @@ func runTunnel(mode string, args []string) error {
 			rest = append(rest, a)
 		case strings.HasPrefix(a, "--sub="):
 			sub = strings.TrimPrefix(a, "--sub=")
+		case a == "--json":
+			jsonOut = true
 		default:
 			rest = append(rest, a)
 		}
@@ -141,8 +148,17 @@ func runTunnel(mode string, args []string) error {
 	if cfg.Server == "" {
 		cfg.Server = DefaultServer
 	}
-	if cfg.Token == "" {
-		return fmt.Errorf("no token: run `dt login` first (or set DT_TOKEN)")
+	// Token resolution: config file < env < compiled-in public token.
+	// The public token makes a fresh install work with zero setup.
+	token := cfg.Token
+	if token == "" {
+		token = DefaultPublicToken
+		if token == "" {
+			return fmt.Errorf("no token: run `dt login` first (or set DT_TOKEN)")
+		}
+		if !jsonOut {
+			fmt.Fprintln(os.Stderr, "[dt] публичный токен сервера — настройка не требуется")
+		}
 	}
 	ensureSession(cfg)
 
@@ -160,6 +176,7 @@ func runTunnel(mode string, args []string) error {
 		cfg:     cfg,
 		mode:    mode,
 		port:    port,
+		token:   token,
 		streams: map[uint32]net.Conn{},
 		insp:    map[uint32]*httpInspector{},
 		tlog:    newTunnelLogger(),
@@ -171,11 +188,45 @@ func runTunnel(mode string, args []string) error {
 // DefaultServer is the public control endpoint.
 const DefaultServer = "tunnel.swag.best:444"
 
+// DefaultPublicToken is the shared token baked into official builds with
+//
+//	-ldflags "-X main.DefaultPublicToken=<obfuscated token>"
+//
+// When it is set, `dt http <port>` works right after install: there is no
+// login step and no DT_TOKEN to configure. Source builds leave it empty and
+// keep the old "run dt login first" behaviour.
+var DefaultPublicToken = ""
+
+// jsonOut switches stdout to machine-readable NDJSON events (--json).
+var jsonOut bool
+
+var emitMu sync.Mutex
+
+// emitEvent writes one NDJSON line to stdout when --json is active.
+// Every event carries "event"; extra fields are merged in.
+func emitEvent(kind string, fields map[string]interface{}) {
+	if !jsonOut {
+		return
+	}
+	if fields == nil {
+		fields = map[string]interface{}{}
+	}
+	fields["event"] = kind
+	b, err := json.Marshal(fields)
+	if err != nil {
+		return
+	}
+	emitMu.Lock()
+	defer emitMu.Unlock()
+	os.Stdout.Write(append(b, '\n'))
+}
+
 // TunnelClient maintains the control connection with auto-reconnect.
 type TunnelClient struct {
 	cfg     *clientConfig
 	mode    string
 	port    string
+	token   string // effective token: config/env, else DefaultPublicToken
 
 	mu      sync.Mutex
 	conn    net.Conn
@@ -203,7 +254,18 @@ func (t *TunnelClient) Run(ctx context.Context) error {
 		}
 
 		wait := t.backoff()
-		fmt.Fprintf(os.Stderr, "[dt] connection lost (%v), retrying in %s\n", err, wait)
+		kind := "disconnected"
+		if strings.Contains(err.Error(), "denied") {
+			kind = "error"
+		}
+		if jsonOut {
+			emitEvent(kind, map[string]interface{}{
+				"error":    err.Error(),
+				"retry_in": wait.Round(time.Millisecond).String(),
+			})
+		} else {
+			fmt.Fprintf(os.Stderr, "[dt] connection lost (%v), retrying in %s\n", err, wait)
+		}
 		select {
 		case <-ctx.Done():
 			return nil
@@ -240,7 +302,7 @@ func (t *TunnelClient) connectOnce(first bool) error {
 
 	hello := HelloMsg{
 		Version:   1,
-		Token:     t.cfg.Token,
+		Token:     t.token,
 		Subdomain: t.cfg.Sub,
 		Mode:      t.mode,
 		LocalPort: port2int(t.port),
@@ -280,7 +342,17 @@ func (t *TunnelClient) connectOnce(first bool) error {
 		local = "tcp://127.0.0.1:" + t.port
 	}
 	url := fmt.Sprintf("%s://%s", scheme, wel.Host)
-	if first || wel.Reconnect {
+	if jsonOut {
+		emitEvent("ready", map[string]interface{}{
+			"url":       url,
+			"host":      wel.Host,
+			"local":     local,
+			"mode":      t.mode,
+			"localPort": port2int(t.port),
+			"reconnect": wel.Reconnect,
+			"server":    t.cfg.Server,
+		})
+	} else if first || wel.Reconnect {
 		status := "tunnel online"
 		if wel.Reconnect {
 			status = "reconnected — session restored"

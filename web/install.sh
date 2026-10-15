@@ -3,8 +3,9 @@
 #
 #   curl -fsSL https://tunnel.swag.best/install.sh | sh
 #
-# The access token is already compiled into the binary, so there is nothing to
-# configure afterwards: `dt http 8080` works immediately.
+# There is nothing to configure afterwards: the built-in token registers this
+# device with the relay on the first run and stores the token it gets back, so
+# `dt http 8080` works immediately.
 set -eu
 
 DOMAIN="${DREAMTUNNEL_DOMAIN:-tunnel.swag.best}"
@@ -100,11 +101,13 @@ esac
 echo ""
 echo "  [+] installed: ${EXE_PATH}"
 echo ""
-echo "  ready to use, the access token is already built in:"
+echo "  ready to use — this device gets its own token on the first run:"
 echo "      dt http 8080              expose a local HTTP server"
 echo "      dt http 8080 my-site      -> https://my-site.${TUNNEL_DOMAIN}"
 echo "      dt tcp 25565              raw TCP tunnel"
 echo "      dt http 8080 --json       machine-readable events"
+echo "      dt config                 server, device id and session"
+echo "      dt enroll                 request a new token for this device"
 echo ""
 echo "  site: https://${DOMAIN}/"
 echo ""

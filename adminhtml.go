@@ -123,7 +123,7 @@ button.act.danger:hover{background:#c22222;color:#fff;}
 
   <div class="wrap">
     <div class="page-heading">
-      <div class="idx">01 / 04 · обзор</div>
+      <div class="idx">01 / 05 · обзор</div>
       <h2 id="h2title">Состояние сервера</h2>
       <div class="lead" id="leadtxt">Активные туннели, трафик и посетители — в реальном времени.</div>
     </div>
@@ -145,6 +145,18 @@ button.act.danger:hover{background:#c22222;color:#fff;}
           <th>Начало</th><th>Активен</th><th>Соединений</th><th>Трафик</th><th></th>
         </tr></thead>
         <tbody id="tbActive"></tbody>
+      </table></div>
+    </div>
+
+    <div class="sec">
+      <h3>Устройства <span class="cnt" id="cntDev"></span></h3>
+      <div class="dim" style="margin-bottom:14px">Каждое устройство получает свой токен при первом запуске и запоминает его. Отзыв закрывает его туннели; «Отозвать + бан IP» не пускает устройство обратно.</div>
+      <div class="table-wrap"><table>
+        <thead><tr>
+          <th>ID</th><th>Имя</th><th>Платформа</th><th>IP</th>
+          <th>Регистрация</th><th>Последний раз</th><th>Статус</th><th></th>
+        </tr></thead>
+        <tbody id="tbDevices"></tbody>
       </table></div>
     </div>
 
@@ -248,6 +260,24 @@ $('banBtn').addEventListener('click', async () => {
   } catch (e) {}
 });
 
+async function revokeDev(id, banIP) {
+  const what = banIP ? 'Отозвать устройство '+id+' и заблокировать его IP?' : 'Отозвать устройство '+id+'?';
+  if (!window.confirm(what)) return;
+  try {
+    const r = await api('device/revoke', {id: id, banIP: !!banIP});
+    if (r.ok) { msg('Устройство '+id+' отозвано', true); refresh(); }
+    else msg(r.error || 'Ошибка', false);
+  } catch (e) {}
+}
+
+async function restoreDev(id) {
+  try {
+    const r = await api('device/restore', {id: id});
+    if (r.ok) { msg('Устройство '+id+' снова активно', true); refresh(); }
+    else msg(r.error || 'Ошибка', false);
+  } catch (e) {}
+}
+
 function render(st) {
   $('stActive').textContent = st.clients.length;
   $('stStreams').textContent = st.stats.totalStreams;
@@ -269,6 +299,25 @@ function render(st) {
     '<td><button class="act danger" onclick="killSess(\''+esc(c.Sess)+'\',\''+esc(c.Host)+'\')">Разорвать</button> ' +
     '<button class="act danger" onclick="banIPof(\''+esc(c.IP)+'\')">Бан IP</button></td>' +
     '</tr>').join('') || '<tr><td colspan="9" class="dim" style="padding:40px 0">Нет активных туннелей</td></tr>';
+
+  // devices
+  $('cntDev').textContent = '(' + (st.devices||[]).length + ')';
+  $('tbDevices').innerHTML = (st.devices||[]).map(d => '<tr>' +
+    '<td class="mono">' + esc(d.id) + '</td>' +
+    '<td>' + esc(d.label || '—') + '</td>' +
+    '<td class="dim">' + esc(d.platform || '—') + '</td>' +
+    '<td class="mono">' + esc(d.ip || '—') + '</td>' +
+    '<td>' + fmtT(d.first) + '</td>' +
+    '<td>' + (d.online ? 'сейчас' : fmtDur(d.last) + ' назад') + '</td>' +
+    '<td>' + (d.revoked ? '<span class="badge killed">отозвано</span>'
+        : d.online ? '<span class="badge on">на связи</span>'
+        : '<span class="badge off">не в сети</span>') + '</td>' +
+    '<td>' + (d.revoked
+        ? '<button class="act" onclick="restoreDev(\''+esc(d.id)+'\')">Вернуть</button>'
+        : '<button class="act danger" onclick="revokeDev(\''+esc(d.id)+'\',false)">Отозвать</button> ' +
+          '<button class="act danger" onclick="revokeDev(\''+esc(d.id)+'\',true)">Отозвать + бан IP</button>') +
+    '</td>' +
+    '</tr>').join('') || '<tr><td colspan="8" class="dim" style="padding:40px 0">Устройства ещё не регистрировались</td></tr>';
 
   // history
   $('tbHist').innerHTML = st.history.slice(0, 100).map(h => '<tr>' +

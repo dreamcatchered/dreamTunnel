@@ -148,16 +148,20 @@ func runTunnel(mode string, args []string) error {
 	if cfg.Server == "" {
 		cfg.Server = DefaultServer
 	}
-	// Token resolution: config file < env < compiled-in public token.
-	// The public token makes a fresh install work with zero setup.
+	// Token resolution: config file < env < compiled-in enrollment token.
+	// A device that has never run before presents the shared token and asks
+	// the server for a token of its own; that token is stored in the config
+	// file and used from then on.
 	token := cfg.Token
+	enroll := false
 	if token == "" {
 		token = DefaultPublicToken
 		if token == "" {
 			return fmt.Errorf("no token: run `dt login` first (or set DT_TOKEN)")
 		}
+		enroll = true
 		if !jsonOut {
-			fmt.Fprintln(os.Stderr, "[dt] публичный токен сервера — настройка не требуется")
+			fmt.Fprintln(os.Stderr, "[dt] первый запуск — получаю токен для этого устройства")
 		}
 	}
 	ensureSession(cfg)
@@ -177,6 +181,8 @@ func runTunnel(mode string, args []string) error {
 		mode:    mode,
 		port:    port,
 		token:   token,
+		enroll:  enroll,
+		label:   deviceLabel(),
 		streams: map[uint32]net.Conn{},
 		insp:    map[uint32]*httpInspector{},
 		tlog:    newTunnelLogger(),
@@ -192,10 +198,19 @@ const DefaultServer = "tunnel.swag.best:444"
 //
 //	-ldflags "-X main.DefaultPublicToken=<obfuscated token>"
 //
-// When it is set, `dt http <port>` works right after install: there is no
-// login step and no DT_TOKEN to configure. Source builds leave it empty and
-// keep the old "run dt login first" behaviour.
+// It is a bootstrapping credential: the first time a device runs, it asks the
+// server for a token of its own and stores that instead. Source builds leave
+// it empty and keep the old "run dt login first" behaviour.
 var DefaultPublicToken = ""
+
+// deviceLabel is the human-readable name this device reports to the server.
+func deviceLabel() string {
+	h, err := os.Hostname()
+	if err != nil || strings.TrimSpace(h) == "" {
+		return "unknown"
+	}
+	return h
+}
 
 // jsonOut switches stdout to machine-readable NDJSON events (--json).
 var jsonOut bool
@@ -226,7 +241,10 @@ type TunnelClient struct {
 	cfg     *clientConfig
 	mode    string
 	port    string
-	token   string // effective token: config/env, else DefaultPublicToken
+	token   string // effective token: device token, else config/env, else shared
+	enroll  bool   // ask the server for a device token on connect
+	label   string // device name reported to the server
+	device  string // device id once known
 
 	mu      sync.Mutex
 	conn    net.Conn
@@ -307,6 +325,9 @@ func (t *TunnelClient) connectOnce(first bool) error {
 		Mode:      t.mode,
 		LocalPort: port2int(t.port),
 		Sess:      t.cfg.Sess,
+		Enroll:    t.enroll,
+		Label:     t.label,
+		Platform:  platformTag(),
 	}
 	hb, _ := json.Marshal(hello)
 	if err := WriteFrame(conn, PktHello, hb); err != nil {
@@ -330,7 +351,15 @@ func (t *TunnelClient) connectOnce(first bool) error {
 	}
 	conn.SetReadDeadline(time.Time{})
 
+	// The server may have just issued this device a token of its own.
+	if wel.Issued != "" {
+		t.adoptDeviceToken(wel)
+	}
+
 	t.mu.Lock()
+	if wel.DeviceID != "" {
+		t.device = wel.DeviceID
+	}
 	t.conn = conn
 	t.attempt = 0
 	t.mu.Unlock()
@@ -343,7 +372,7 @@ func (t *TunnelClient) connectOnce(first bool) error {
 	}
 	url := fmt.Sprintf("%s://%s", scheme, wel.Host)
 	if jsonOut {
-		emitEvent("ready", map[string]interface{}{
+		ev := map[string]interface{}{
 			"url":       url,
 			"host":      wel.Host,
 			"local":     local,
@@ -351,7 +380,11 @@ func (t *TunnelClient) connectOnce(first bool) error {
 			"localPort": port2int(t.port),
 			"reconnect": wel.Reconnect,
 			"server":    t.cfg.Server,
-		})
+		}
+		if t.device != "" {
+			ev["device"] = t.device
+		}
+		emitEvent("ready", ev)
 	} else if first || wel.Reconnect {
 		status := "tunnel online"
 		if wel.Reconnect {
@@ -366,6 +399,41 @@ func (t *TunnelClient) connectOnce(first bool) error {
 	}
 
 	return t.readLoop(ctx0(), conn)
+}
+
+// adoptDeviceToken remembers the token the server issued for this device:
+// reconnects and later runs use it instead of the shared enrollment token.
+func (t *TunnelClient) adoptDeviceToken(wel WelcomeMsg) {
+	t.mu.Lock()
+	t.token = wel.Issued
+	t.enroll = false
+	t.device = wel.DeviceID
+	t.mu.Unlock()
+
+	// The config keeps the obfuscated form, exactly like `dt login` does.
+	stored := wel.Issued
+	if ob, err := tokenObfuscate(ObfuscationPass, wel.Issued); err == nil {
+		stored = ob
+	}
+	t.cfg.Token = stored
+	if err := saveClientConfig(t.cfg); err != nil {
+		emitEvent("error", map[string]interface{}{
+			"error": "could not save the device token: " + err.Error(),
+		})
+		if !jsonOut {
+			fmt.Fprintf(os.Stderr, "[dt] не удалось сохранить токен устройства: %v\n", err)
+		}
+		return
+	}
+	if !jsonOut {
+		fmt.Fprintf(os.Stderr, "[dt] устройство зарегистрировано (id %s), токен сохранён в %s\n",
+			wel.DeviceID, clientConfigPath())
+	}
+	emitEvent("enrolled", map[string]interface{}{
+		"device": wel.DeviceID,
+		"label":  t.label,
+		"config": clientConfigPath(),
+	})
 }
 
 // ctx0 is set by Run (shared context). Kept simple: package-level current ctx.

@@ -24,7 +24,7 @@ from .errors import (
 )
 from .tunnel import DEFAULT_SERVER, Tunnel
 
-__version__ = "0.1.0"
+__version__ = "0.1.1"
 
 __all__ = [
     "Tunnel",

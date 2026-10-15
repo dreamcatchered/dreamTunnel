@@ -6,9 +6,10 @@ VERSION="${1:-dev}"
 OUT="dist"
 mkdir -p "$OUT"
 
-# Baked-in default token so a fresh install works with zero setup:
-#   export DT_DEFAULT_TOKEN="$(./dt token "$DT_PUBLIC_TOKEN")"   # obfuscated form
-#   ./release.sh v1.1.1
+# Baked-in enrollment token so a fresh install works with zero setup: the
+# first run asks the relay for a token of this device and stores it.
+#   export DT_DEFAULT_TOKEN="$(./dt token "$DT_ENROLL_TOKEN")"   # obfuscated form
+#   ./release.sh v1.2.0
 TOKEN_LDFLAGS=""
 if [ -n "${DT_DEFAULT_TOKEN:-}" ]; then
   TOKEN_LDFLAGS="-X main.DefaultPublicToken=${DT_DEFAULT_TOKEN}"

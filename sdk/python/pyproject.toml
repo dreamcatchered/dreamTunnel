@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "dreamtunnel"
-version = "0.1.0"
+version = "0.1.1"
 description = "Python SDK for dreamTunnel — instant public HTTPS tunnels"
 readme = "README.md"
 requires-python = ">=3.10"

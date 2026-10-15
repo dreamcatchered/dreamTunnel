@@ -96,6 +96,31 @@ def test_events_and_callback_reach_the_caller(fake_dt: Path) -> None:
     assert any(e["event"] == "ready" for e in tun.events)
 
 
+def test_device_id_is_reported_and_survives_restart(
+    fake_dt: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """A fresh device is registered by the relay and keeps its id."""
+    monkeypatch.setenv("FAKE_DT_ENROLL", "1")
+    seen: list[dict] = []
+    tun = make(fake_dt, subdomain="dev", on_event=seen.append)
+    tun.start()
+    try:
+        assert tun.device_id == "f00dbabe"
+        tun.restart()
+        assert tun.device_id == "f00dbabe", "the device id must survive a restart"
+    finally:
+        tun.stop()
+    assert seen[0]["event"] == "enrolled"
+    assert any(e["event"] == "ready" and e.get("device") == "f00dbabe" for e in seen)
+
+
+def test_device_id_is_none_for_old_binary(fake_dt: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """dt builds without the enrollment protocol report no device id."""
+    monkeypatch.setenv("FAKE_DT_IGNORE_JSON", "1")
+    with make(fake_dt, subdomain="old-dev") as tun:
+        assert tun.device_id is None
+
+
 def test_reconnect_event_is_reported(fake_dt: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setenv("FAKE_DT_BEHAVIOUR", "flap")
     seen: list[dict] = []
